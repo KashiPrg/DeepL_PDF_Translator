@@ -1,0 +1,13 @@
+Article
+A Survey on the Procedural Generation of
+Virtual Worlds
+
+Jonas Freiknecht * and Wolfgang Effelsberg *
+
+Department of Computer Science IV, University of Mannheim, 68131 Mannheim, Germany
+* Correspondence: jfreikne@mail.uni-mannheim.de (J.F.); effelsberg@informatik.uni-mannheim.de (W.E.)
+
+Received: 30 August 2017; Accepted: 20 October 2017; Published: 30 October 2017
+
+Abstract: This survey presents algorithms for the automatic generation of content for virtual worlds,
+in particular for games. After a de

@@ -127,3 +127,9 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# output directory
+output/
+
+# vscode
+.vscode/
