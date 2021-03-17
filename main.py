@@ -1,5 +1,6 @@
 import wx
 
+from enum import Enum
 from pathlib import Path
 from pdfminer.high_level import extract_text
 from pdfminer.pdfparser import PDFSyntaxError
@@ -11,12 +12,112 @@ from sys import stderr
 from time import sleep
 
 
+# DeepLでの翻訳を管理する
+class DeepLManager:
+    def __init__(self, browser):
+        if browser == DeepLManager.Browser.CHROME:
+            self.__webDriver = webdriver.Chrome(
+                "./drivers/windows/chromedriver.exe")
+        elif browser == DeepLManager.Browser.EDGE:
+            self.__webDriver = webdriver.Edge(
+                "./drivers/windows/msedgedriver.exe")
+        else:
+            # Firefoxはなぜかexecutable_pathで指定しないとエラーが起きる
+            self.__webDriver = webdriver.Firefox(
+                executable_path="./drivers/windows/geckodriver.exe")
+
+    class Browser(Enum):
+        CHROME = "chrome"
+        EDGE = "edge"
+        FIREFOX = "firefox"
+
+    # DeepLのタブを開く
+    def openDeepLPage(self):
+        # 今のタブがDeepLなら何もしない
+        try:
+            if self.__webDriver.current_url == \
+               "https://www.deepl.com/translator":
+                return
+        except AttributeError:
+            print("Error: webDriver is not initiated.", file=stderr)
+            exit(1)
+
+        # 他のタブにそのページがあるならそれを開いて終わり
+        for tab in self.__webDriver.window_handles:
+            self.__webDriver.switch_to.window(tab)
+            if self.__webDriver.current_url == \
+               "https://www.deepl.com/translator":
+                return
+
+        # もしDeepLのページを開いているタブが無ければ新たに開く
+        # 新しいタブを開き、そのタブに移動
+        self.__webDriver.execute_script("window.open('', '_blank');")
+        self.__webDriver.switch_to.window(self.__webDriver.window_handles[-1])
+        # DeepLに接続
+        self.__webDriver.get("https://www.deepl.com/translator")
+
+    # 渡された文を翻訳にかけ、訳文を返す
+    def translate(self, text, first_wait_secs=30, wait_secs_max=60):
+        # DeepLのページが開かれていなければ開く
+        self.openDeepLPage()
+
+        # 原文の入力欄を取得
+        source_textarea = self.__webDriver.find_element_by_css_selector(
+            "textarea.lmt__textarea.lmt__source_textarea."
+            "lmt__textarea_base_style"
+        )
+        # Ctrl+Aで全選択し、前の文を消しつつ原文を入力
+        source_textarea.send_keys(Keys.CONTROL, "a")
+        source_textarea.send_keys(text)
+
+        # 最初に5秒待つ
+        sleep(first_wait_secs)
+
+        # 翻訳の進行度を示すポップアップが無ければ翻訳完了と見なす
+        # 制限時間内に翻訳が終了しなければ翻訳失敗と見なす
+        wait_secs_sub = int(wait_secs_max - first_wait_secs)
+        for i in range(wait_secs_sub):
+            try:
+                # 通常時はdiv.lmt_progress_popupだが、ポップアップが可視化するときは
+                # lmt_progress_popup--visible(_2)が追加される
+                _ = self.__webDriver.find_element_by_css_selector(
+                    "div.lmt__progress_popup.lmt__progress_popup--visible."
+                    "lmt__progress_popup--visible_2")
+            except NoSuchElementException:
+                # ポップアップが無ければ抜け出す
+                break
+            # ポップアップがあり、かつ制限時間内ならばもう1秒待つ
+            if i < wait_secs_sub - 1:
+                sleep(1.0)
+                continue
+            else:
+                # 制限時間を過ぎたら失敗
+                # 段落と同じ数だけメッセージを生成
+                num_pars = len(text.splitlines())
+                messages = ["(翻訳に" + str(wait_secs_max) +
+                            "秒以上を要するため失敗と見なしました)"
+                            for _ in range(num_pars)]
+                return "\n".join(messages)
+
+        # 訳文の出力欄を取得し、訳文を取得
+        translated = self.__webDriver.find_element_by_css_selector(
+            "textarea.lmt__textarea.lmt__target_textarea."
+            "lmt__textarea_base_style"
+        ).get_property("value")
+
+        return translated
+
+    # ブラウザのウィンドウを閉じる
+    def closeWindow(self):
+        self.__webDriver.quit()
+
+
 class MyFileDropTarget(wx.FileDropTarget):
-    __webDriver = None
+    __deepLManager = None
     # このリストに含まれる正規表現に当てはまる文字列は無視する
     __ignore_lines = [r"^ACM Trans", r"^[0-9]:[0-9]", r"[0-9]:[0-9]$", r"•$", r"Peng Wang, Lingjie Liu, Nenglun Chen, Hung-Kuo Chu, Christian Theobalt, and Wenping Wang$"]
     # このリストに含まれる正規表現に当てはまる文字列がある行で改行する
-    __return_lines = [r"(\.|:|\([0-9]+\))\s*$", r"[0-9]+\s*\.?\s*introduction$", r"[0-9]+\s*\.?\s*related works?$", r"[0-9]+\s*\.?\s*overview$", r"[0-9]+\s*\.?\s*algorithm$", r"[0-9]+\s*\.?\s*experimental results$", r"[0-9]+\s*\.?\s*conclusions$", r"acknowledgements$", r"references$"]
+    __return_lines = [r"(\.|:|\([0-9]+\))\s*$", r"[0-9]+\s*\.?\s*introduction", r"[0-9]+\s*\.?\s*related works?", r"[0-9]+\s*\.?\s*overview", r"[0-9]+\s*\.?\s*algorithm", r"[0-9]+\s*\.?\s*experimental results", r"[0-9]+\s*\.?\s*conclusions", r"acknowledgements", r"references"]
 
     def __init__(self, window):
         wx.FileDropTarget.__init__(self)
@@ -25,11 +126,10 @@ class MyFileDropTarget(wx.FileDropTarget):
     # ウィンドウにファイルがドロップされた時
     def OnDropFiles(self, x, y, filenames):
         # Chromeのブラウザを用意
-        self.__webDriver = webdriver.Chrome(
-            "./drivers/windows/chromedriver.exe")
+        self.__deepLManager = DeepLManager(DeepLManager.Browser.FIREFOX)
 
         # DeepLのページを開く
-        self.__openDeepL()
+        self.__deepLManager.openDeepLPage()
 
         # ファイルパスをテキストフィールドに表示
         for file in filenames:
@@ -151,91 +251,16 @@ class MyFileDropTarget(wx.FileDropTarget):
                         else:
                             par_buffer += textlines[i] + " "
 
-        self.__webDriver.quit()
+        self.DeepLManager.closeWindow()
 
         return True
 
     # 翻訳とファイルへの書き込みを行う
     def __tl_and_write(self, paragraphs, f):
-        translated = self.__translate("\n".join(paragraphs)).splitlines()
+        translated = self.__deepLManager.translate(
+            "\n".join(paragraphs)).splitlines()
         for i in range(len(paragraphs)):
             f.write(paragraphs[i] + "\n\n" + translated[i] + "\n\n")
-
-    # 渡された文を翻訳にかけ、訳文を返す
-    def __translate(self, text):
-        # DeepLのページが開かれていなければ開く
-        self.__openDeepL()
-
-        # 原文の入力欄を取得
-        source_textarea = self.__webDriver.find_element_by_css_selector(
-            "textarea.lmt__textarea.lmt__source_textarea."
-            "lmt__textarea_base_style"
-        )
-        # Ctrl+Aで全選択し、前の文を消しつつ原文を入力
-        source_textarea.send_keys(Keys.CONTROL, "a")
-        source_textarea.send_keys(text)
-
-        # 最初に5秒待つ
-        sleep(30)
-
-        # 翻訳の進行度を示すポップアップが無ければ翻訳完了と見なす
-        # 制限時間内に翻訳が終了しなければ翻訳失敗と見なす
-        wait_secs = 25
-        for i in range(wait_secs):
-            try:
-                # 通常時はdiv.lmt_progress_popupだが、ポップアップが可視化するときは
-                # lmt_progress_popup--visible(_2)が追加される
-                _ = self.__webDriver.find_element_by_css_selector(
-                    "div.lmt__progress_popup.lmt__progress_popup--visible."
-                    "lmt__progress_popup--visible_2")
-            except NoSuchElementException:
-                # ポップアップが無ければ抜け出す
-                break
-            # ポップアップがあり、かつ制限時間内ならばもう1秒待つ
-            if i < wait_secs - 1:
-                sleep(1.0)
-                continue
-            else:
-                # 制限時間を過ぎたら失敗
-                # 段落と同じ数だけメッセージを生成
-                num_pars = len(text.splitlines())
-                messages = ["(翻訳に" + str(wait_secs + 30) +
-                            "秒以上を要するため失敗と見なしました)"
-                            for _ in range(num_pars)]
-                return "\n".join(messages)
-
-        # 訳文の出力欄を取得し、訳文を取得
-        translated = self.__webDriver.find_element_by_css_selector(
-            "textarea.lmt__textarea.lmt__target_textarea."
-            "lmt__textarea_base_style"
-        ).get_property("value")
-
-        return translated
-
-    # DeepLのタブを開く
-    def __openDeepL(self):
-        # 今のタブがDeepLなら何もしない
-        try:
-            if self.__webDriver.current_url == \
-               "https://www.deepl.com/translator":
-                return
-        except AttributeError:
-            print("Error: webDriver is not initiated.", file=stderr)
-            exit(1)
-
-        # 他のタブにそのページがあるならそれを開いて終わり
-        for tab in self.__webDriver.window_handles:
-            self.__webDriver.switch_to.window(tab)
-            if self.__webDriver.current_url == \
-               "https://www.deepl.com/translator":
-                return
-
-        # もしDeepLのページを開いているタブが無ければ新たに開く
-        # 新しいタブを開き、そのタブに移動
-        self.__webDriver.execute_script("window.open('', '_blank');")
-        self.__webDriver.switch_to.window(self.__webDriver.window_handles[-1])
-        # DeepLに接続
-        self.__webDriver.get("https://www.deepl.com/translator")
 
 
 class MyFrame(wx.Frame):

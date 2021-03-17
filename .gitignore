@@ -131,5 +131,8 @@ dmypy.json
 # output directory
 output/
 
+# webdrivers
+drivers/windows/*
+
 # vscode
 .vscode/
