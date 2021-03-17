@@ -15,7 +15,7 @@ PDFファイルから人力で文章をコピーして、随所に挟まる改�
 
 ## 動作環境
 
-OS: Windows 10
+OS: Windows, MacOS(動作未確認), Linux系(動作未確認)
 Python: 3.7.9
 - Chrome
 - Edge
@@ -30,6 +30,7 @@ Python: 3.7.9
 ### v0.1.1
 <details>
 
+- MacOS、Linuxに対応(動作未確認)
 - Edge、FireFoxに対応
 - ソースコード整形
 

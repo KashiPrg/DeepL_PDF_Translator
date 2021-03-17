@@ -1,3 +1,4 @@
+import platform
 import wx
 
 from enum import Enum
@@ -15,16 +16,29 @@ from time import sleep
 # DeepLでの翻訳を管理する
 class DeepLManager:
     def __init__(self, browser):
-        if browser == DeepLManager.Browser.CHROME:
-            self.__webDriver = webdriver.Chrome(
-                "./drivers/chromedriver.exe")
-        elif browser == DeepLManager.Browser.EDGE:
-            self.__webDriver = webdriver.Edge(
-                "./drivers/msedgedriver.exe")
+        if platform.system() == "Windows":
+            # Windowsなら実行ファイルに拡張子が付く
+            if browser == DeepLManager.Browser.CHROME:
+                self.__webDriver = webdriver.Chrome(
+                    "./drivers/chromedriver.exe")
+            elif browser == DeepLManager.Browser.EDGE:
+                self.__webDriver = webdriver.Edge(
+                    "./drivers/msedgedriver.exe")
+            else:
+                # Firefoxはなぜかexecutable_pathで指定しないとエラーが起きる
+                self.__webDriver = webdriver.Firefox(
+                    executable_path="./drivers/geckodriver.exe")
         else:
-            # Firefoxはなぜかexecutable_pathで指定しないとエラーが起きる
-            self.__webDriver = webdriver.Firefox(
-                executable_path="./drivers/geckodriver.exe")
+            # MacやLinux(Windows以外)なら拡張子は付かない
+            if browser == DeepLManager.Browser.CHROME:
+                self.__webDriver = webdriver.Chrome(
+                    "./drivers/chromedriver")
+            elif browser == DeepLManager.Browser.EDGE:
+                self.__webDriver = webdriver.Edge(
+                    "./drivers/msedgedriver")
+            else:
+                self.__webDriver = webdriver.Firefox(
+                    executable_path="./drivers/geckodriver")
 
     class Browser(Enum):
         CHROME = "chrome"
