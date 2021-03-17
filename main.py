@@ -17,14 +17,14 @@ class DeepLManager:
     def __init__(self, browser):
         if browser == DeepLManager.Browser.CHROME:
             self.__webDriver = webdriver.Chrome(
-                "./drivers/windows/chromedriver.exe")
+                "./drivers/chromedriver.exe")
         elif browser == DeepLManager.Browser.EDGE:
             self.__webDriver = webdriver.Edge(
-                "./drivers/windows/msedgedriver.exe")
+                "./drivers/msedgedriver.exe")
         else:
             # Firefoxはなぜかexecutable_pathで指定しないとエラーが起きる
             self.__webDriver = webdriver.Firefox(
-                executable_path="./drivers/windows/geckodriver.exe")
+                executable_path="./drivers/geckodriver.exe")
 
     class Browser(Enum):
         CHROME = "chrome"
