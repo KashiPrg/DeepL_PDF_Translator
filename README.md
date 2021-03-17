@@ -27,8 +27,8 @@ Python: 3.7.9
 
 ## バージョン履歴
 
-### v0.1.1
-<details>
+### v0.2.0
+<details open>
 
 - MacOS、Linuxに対応(動作未確認)
 - Edge、FireFoxに対応
