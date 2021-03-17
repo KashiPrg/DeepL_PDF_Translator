@@ -1,4 +1,5 @@
 import platform
+import selenium.common.exceptions as sce
 import wx
 
 from enum import Enum
@@ -7,43 +8,72 @@ from pdfminer.high_level import extract_text
 from pdfminer.pdfparser import PDFSyntaxError
 from re import search, IGNORECASE
 from selenium import webdriver
-from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.common.keys import Keys
 from sys import stderr
 from time import sleep
 
 
+class Browser(Enum):
+    CHROME = "Chrome"
+    EDGE = "Edge"
+    FIREFOX = "FireFox"
+
+
 # DeepLでの翻訳を管理する
 class DeepLManager:
-    def __init__(self, browser):
-        if platform.system() == "Windows":
-            # Windowsなら実行ファイルに拡張子が付く
-            if browser == DeepLManager.Browser.CHROME:
-                self.__webDriver = webdriver.Chrome(
-                    "./drivers/chromedriver.exe")
-            elif browser == DeepLManager.Browser.EDGE:
-                self.__webDriver = webdriver.Edge(
-                    "./drivers/msedgedriver.exe")
-            else:
-                # Firefoxはなぜかexecutable_pathで指定しないとエラーが起きる
-                self.__webDriver = webdriver.Firefox(
-                    executable_path="./drivers/geckodriver.exe")
-        else:
-            # MacやLinux(Windows以外)なら拡張子は付かない
-            if browser == DeepLManager.Browser.CHROME:
-                self.__webDriver = webdriver.Chrome(
-                    "./drivers/chromedriver")
-            elif browser == DeepLManager.Browser.EDGE:
-                self.__webDriver = webdriver.Edge(
-                    "./drivers/msedgedriver")
-            else:
-                self.__webDriver = webdriver.Firefox(
-                    executable_path="./drivers/geckodriver")
+    webDriverURLs = {
+        Browser.CHROME.value:
+            "https://sites.google.com/a/chromium.org/chromedriver/downloads",
+        Browser.EDGE.value:
+            "https://developer.microsoft.com/en-us/" +
+            "microsoft-edge/tools/webdriver/#downloads",
+        Browser.FIREFOX.value:
+            "https://github.com/mozilla/geckodriver/releases"
+    }
 
-    class Browser(Enum):
-        CHROME = "chrome"
-        EDGE = "edge"
-        FIREFOX = "firefox"
+    def __init__(self, browser):
+        try:
+            if platform.system() == "Windows":
+                # Windowsなら実行ファイルに拡張子が付く
+                if browser == Browser.CHROME.value:
+                    self.__webDriver = webdriver.Chrome(
+                        "./drivers/chromedriver.exe")
+                elif browser == Browser.EDGE.value:
+                    self.__webDriver = webdriver.Edge(
+                        "./drivers/msedgedriver.exe")
+                elif browser == Browser.FIREFOX.value:
+                    # Firefoxはなぜかexecutable_pathで指定しないとエラーが起きる
+                    self.__webDriver = webdriver.Firefox(
+                        executable_path="./drivers/geckodriver.exe")
+                else:
+                    self.__invalidBrowser()
+            else:
+                # MacやLinux(Windows以外)なら拡張子は付かない
+                if browser == Browser.CHROME.value:
+                    self.__webDriver = webdriver.Chrome(
+                        "./drivers/chromedriver")
+                elif browser == Browser.EDGE.value:
+                    self.__webDriver = webdriver.Edge(
+                        "./drivers/msedgedriver")
+                elif browser == Browser.FIREFOX.value:
+                    self.__webDriver = webdriver.Firefox(
+                        executable_path="./drivers/geckodriver")
+                else:
+                    self.__invalidBrowser()
+        except sce.WebDriverException:
+            wx.LogError(
+                browser + "、または" + browser +
+                "のWebDriverがインストールされていません。\n\n" +
+                browser + "をインストールするか、" +
+                browser + "のWebDriverを\n" +
+                self.webDriverURLs[browser] + " から入手し、" +
+                "driversディレクトリに配置してください。"
+            )
+            exit(1)
+
+    def __invalidBrowser(self):
+        wx.LogError("ブラウザの指定が無効な値です。")
+        exit(1)
 
     # DeepLのタブを開く
     def openDeepLPage(self):
@@ -97,7 +127,7 @@ class DeepLManager:
                 _ = self.__webDriver.find_element_by_css_selector(
                     "div.lmt__progress_popup.lmt__progress_popup--visible."
                     "lmt__progress_popup--visible_2")
-            except NoSuchElementException:
+            except sce.NoSuchElementException:
                 # ポップアップが無ければ抜け出す
                 break
             # ポップアップがあり、かつ制限時間内ならばもう1秒待つ
@@ -139,8 +169,8 @@ class MyFileDropTarget(wx.FileDropTarget):
 
     # ウィンドウにファイルがドロップされた時
     def OnDropFiles(self, x, y, filenames):
-        # Chromeのブラウザを用意
-        self.__deepLManager = DeepLManager(DeepLManager.Browser.FIREFOX)
+        # 選択に応じたブラウザを用意
+        self.__deepLManager = DeepLManager(self.window.GetBrowserSelection())
 
         # DeepLのページを開く
         self.__deepLManager.openDeepLPage()
@@ -277,25 +307,46 @@ class MyFileDropTarget(wx.FileDropTarget):
             f.write(paragraphs[i] + "\n\n" + translated[i] + "\n\n")
 
 
-class MyFrame(wx.Frame):
+class WindowFrame(wx.Frame):
     def __init__(self):
         wx.Frame.__init__(self, None,
                           title="DeepL PDF Translator", size=(500, 200))
         p = wx.Panel(self)
-        sizer = wx.BoxSizer(wx.HORIZONTAL)
+        sizer = wx.BoxSizer(wx.VERTICAL)
 
         label = wx.StaticText(p, -1, "File name:")
         self.text = wx.TextCtrl(p, -1, "", size=(400, -1))
         sizer.Add(label, 0, wx.ALL, 5)
         sizer.Add(self.text, 0, wx.ALL, 5)
+
+        self.browser_combo = WindowFrame.BrowserCombo(p)
+        self.browser_combo.SetStringSelection(Browser.CHROME.value)
+        sizer.Add(self.browser_combo,
+                  flag=wx.ALIGN_LEFT | wx.TOP | wx.LEFT | wx.BOTTOM, border=10)
+
         p.SetSizer(sizer)
 
         dt = MyFileDropTarget(self)
         self.SetDropTarget(dt)
         self.Show()
 
+    def GetBrowserSelection(self):
+        return self.browser_combo.GetStringSelection()
+
+    class BrowserCombo(wx.ComboBox):
+        def __init__(self, parent):
+            browser_combo_elements = (
+                Browser.CHROME.value,
+                Browser.EDGE.value,
+                Browser.FIREFOX.value
+            )
+            super().__init__(
+                parent, wx.ID_ANY, "ブラウザを選択",
+                choices=browser_combo_elements, style=wx.CB_READONLY
+            )
+
 
 if __name__ == '__main__':
     app = wx.App()
-    MyFrame()
+    WindowFrame()
     app.MainLoop()
