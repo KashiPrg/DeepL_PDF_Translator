@@ -158,10 +158,14 @@ class DeepLManager:
 
 class MyFileDropTarget(wx.FileDropTarget):
     __deepLManager = None
+    # このリストに含まれる正規表現に当てはまる文字列から翻訳を開始する
+    __start_lines = [r"[0-9]+\s*\.?\s*introduction", r"introduction$"]
+    # このリストに含まれる正規表現に当てはまる文字列で翻訳を打ち切る
+    __end_lines = [r"^references?$"]
     # このリストに含まれる正規表現に当てはまる文字列は無視する
     __ignore_lines = [r"^ACM Trans", r"^[0-9]:[0-9]", r"[0-9]:[0-9]$", r"•$", r"Peng Wang, Lingjie Liu, Nenglun Chen, Hung-Kuo Chu, Christian Theobalt, and Wenping Wang$"]
     # このリストに含まれる正規表現に当てはまる文字列がある行で改行する
-    __return_lines = [r"(\.|:|\([0-9]+\))\s*$", r"[0-9]+\s*\.?\s*introduction", r"[0-9]+\s*\.?\s*related works?", r"[0-9]+\s*\.?\s*overview", r"[0-9]+\s*\.?\s*algorithm", r"[0-9]+\s*\.?\s*experimental results", r"[0-9]+\s*\.?\s*conclusions", r"acknowledgements", r"references"]
+    __return_lines = [r"(\.|:|\([0-9]+\))\s*$", r"[0-9]+\s*\.?\s*introduction", r"[0-9]+\s*\.?\s*related works?", r"[0-9]+\s*\.?\s*overview", r"[0-9]+\s*\.?\s*algorithm", r"[0-9]+\s*\.?\s*experimental results", r"[0-9]+\s*\.?\s*conclusions", r"^acknowledgements$", r"^references?$"]
 
     def __init__(self, window):
         wx.FileDropTarget.__init__(self)
@@ -176,42 +180,91 @@ class MyFileDropTarget(wx.FileDropTarget):
         self.__deepLManager.openDeepLPage()
 
         # ファイルパスをテキストフィールドに表示
-        for file in filenames:
-            self.window.text.SetValue(file)
+        for fi in range(len(filenames)):
+            self.window.text.SetValue(filenames[fi])
+
+            addedMessage = ""
+            if fi == len(filenames) - 1:
+                addedMessage = "\n翻訳を終了します。"
+            else:
+                addedMessage = "次のファイルの翻訳に移ります。"
 
             # PDFからテキストを抽出
             textlines = []
             try:
-                textlines = extract_text(file).splitlines()
+                textlines = extract_text(filenames[fi]).splitlines()
             except PDFSyntaxError:
                 # ドロップされたファイルがPDFでない場合は次へ
-                print(file + " is not a PDF.")
+                message = str(filenames[fi]) + "はPDF形式ではありません。"
+                wx.MessageBox(message + addedMessage, "notPDF")
                 continue
 
             # 抽出したテキストから空行を除く
             temp = list(filter(lambda s: s != "", textlines))
 
-            # 無視すべき文字列が入った行を除く
-            textlines = []
-            skipLine = False
-            for t in temp:
-                for il in self.__ignore_lines:
-                    if search(il, t, flags=IGNORECASE):
-                        skipLine = True
-                        break
-                if skipLine:
-                    skipLine = False
-                    continue
+            # 除くべき行を除く
+            ignore_start_condition = False
+            while True:
+                textlines = []
+                lines_extracting = False    # テキストを抽出中か
+                skipLine = False            # その行を飛ばすか
+                # 開始条件を無視する場合
+                if ignore_start_condition:
+                    lines_extracting = True
+                for t in temp:
+                    # 翻訳を開始する合図となる文字列を探す
+                    for sl in self.__start_lines:
+                        if search(sl, t, flags=IGNORECASE):
+                            lines_extracting = True
+                    # 翻訳を打ち切る合図となる文字列を探す
+                    for el in self.__end_lines:
+                        if search(el, t, flags=IGNORECASE):
+                            lines_extracting = False
+                    # 翻訳をしないことになったなら、その文字列は飛ばす
+                    if not lines_extracting:
+                        continue
 
-                # 行末が"-"の場合は取り除く
-                if t[-1] == "-":
-                    t = t[:-1]
-                textlines.append(t)
+                    # 翻訳を開始しても、無視する文字列なら飛ばす
+                    for il in self.__ignore_lines:
+                        if search(il, t, flags=IGNORECASE):
+                            skipLine = True
+                            break
+                    if skipLine:
+                        skipLine = False
+                        continue
+
+                    # 行末が"-"の場合は取り除く
+                    if t[-1] == "-":
+                        t = t[:-1]
+                    textlines.append(t)
+                # 行が一つ以上抽出されたなら抜け出す
+                if len(textlines) != 0:
+                    break
+                else:
+                    if not ignore_start_condition:
+                        message_ignore_start_condition = wx.MessageBox(
+                            "テキストが抽出されませんでした。\n"
+                            "翻訳開始条件を無視して翻訳を行いますか？",
+                            caption="テキストの抽出に失敗",
+                            style=wx.YES | wx.NO)
+                        if message_ignore_start_condition == wx.YES:
+                            ignore_start_condition = True
+                        else:
+                            break
+                    else:
+                        break
+
+            if len(textlines) == 0:
+                wx.MessageBox(
+                    "テキストが抽出されませんでした。" + addedMessage,
+                    "テキストの抽出に失敗"
+                )
+                continue
 
             # 出力用のディレクトリを作成
             Path("output").mkdir(exist_ok=True)
             # 出力用ファイルのパス
-            outputFilePath = Path("output/" + Path(file).stem + ".txt")
+            outputFilePath = Path("output/" + Path(filenames[fi]).stem + ".txt")
 
             with open(outputFilePath, mode="w", encoding="utf-8") as f:
                 paragraphs = []     # 段落ごとに分けて格納
@@ -295,7 +348,7 @@ class MyFileDropTarget(wx.FileDropTarget):
                         else:
                             par_buffer += textlines[i] + " "
 
-        self.DeepLManager.closeWindow()
+        self.__deepLManager.closeWindow()
 
         return True
 
