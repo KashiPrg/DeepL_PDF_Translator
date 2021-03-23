@@ -187,6 +187,23 @@ class MyFileDropTarget(wx.FileDropTarget):
         r"^acknowledgements$",
         r"^references?$"
     ]
+    # このリストに含まれる正規表現に当てはまる文字列があるとき、
+    # 改行対象でも改行しない
+    # 主にその略語の後に文が続きそうなものが対象
+    # 単なる略語は文末にも存在し得るので対象外
+    # 参考：[参考文献リストやデータベースに出てくる略語・用語一覧]
+    # (https://www.dl.itc.u-tokyo.ac.jp/gacos/supportbook/16.html)
+    __return_ignore_lines = [
+        r"\s+(e\.g|et al|etc|ex)\.$",
+        r"\s+(ff|figs?)\.$",
+        r"\s+(i\.e|illus)\.$",
+        r"\s+ll\.$",
+        r"\s+(Mr|Ms|Mrs)\.$",
+        r"\s+(pp|par|pt)\.$",
+        r"\s+sec\.$",
+        # "["が始まっているが"]"で閉じられていない(参考文献表記の途中など)
+        r"\[(?!.*\]).*$"
+    ]
 
     def __init__(self, window):
         wx.FileDropTarget.__init__(self)
@@ -325,13 +342,20 @@ class MyFileDropTarget(wx.FileDropTarget):
                         else:
                             tooLongParagraph = True
 
-                    # 行末にピリオドまたはコロン、数字のみを含んだカッコがあるか、
+                    # 文末っぽい表現がされていたり、
                     # その他return_linesに含まれる正規表現に当てはまればそこを文末と見なす
                     return_flag = False
                     for rl in self.__return_lines:
                         if search(rl, textlines[i], flags=IGNORECASE):
                             return_flag = True
                             break
+
+                    # ただし、よくある略語だったりする場合は文末とは見なさない
+                    if return_flag:
+                        for ril in self.__return_ignore_lines:
+                            if search(ril, textlines[i]):
+                                return_flag = False
+                                break
 
                     end_of_file = i == len(textlines) - 1   # ファイルの終端フラグ
                     if return_flag or end_of_file:
