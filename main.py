@@ -1,4 +1,5 @@
 import platform
+import re
 import selenium.common.exceptions as sce
 import wx
 
@@ -6,7 +7,6 @@ from enum import Enum
 from pathlib import Path
 from pdfminer.high_level import extract_text
 from pdfminer.pdfparser import PDFSyntaxError
-from re import search, IGNORECASE
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 from sys import stderr
@@ -204,6 +204,17 @@ class MyFileDropTarget(wx.FileDropTarget):
         # "["が始まっているが"]"で閉じられていない(参考文献表記の途中など)
         r"\[(?!.*\]).*$"
     ]
+    # フォーマットの都合上どうしても入ってしまうノイズを置換する
+    # これはそのノイズ候補のリスト
+    # 一般的な表現の場合は諸刃の剣となるので注意
+    # また、リストの最初に近いほど優先して処理される
+    __replace_source = [
+        r"\s*[0-9]+\s*of\s*[0-9]+\s*"   # "1 of 9" などのページカウント
+    ]
+    # ノイズをどのような文字列に置換するか
+    __replace_target = [
+        " "
+    ]
 
     def __init__(self, window):
         wx.FileDropTarget.__init__(self)
@@ -252,11 +263,11 @@ class MyFileDropTarget(wx.FileDropTarget):
                 for t in temp:
                     # 翻訳を開始する合図となる文字列を探す
                     for sl in self.__start_lines:
-                        if search(sl, t, flags=IGNORECASE):
+                        if re.search(sl, t, flags=re.IGNORECASE):
                             lines_extracting = True
                     # 翻訳を打ち切る合図となる文字列を探す
                     for el in self.__end_lines:
-                        if search(el, t, flags=IGNORECASE):
+                        if re.search(el, t, flags=re.IGNORECASE):
                             lines_extracting = False
                     # 翻訳をしないことになったなら、その文字列は飛ばす
                     if not lines_extracting:
@@ -264,12 +275,20 @@ class MyFileDropTarget(wx.FileDropTarget):
 
                     # 翻訳を開始しても、無視する文字列なら飛ばす
                     for il in self.__ignore_lines:
-                        if search(il, t, flags=IGNORECASE):
+                        if re.search(il, t, flags=re.IGNORECASE):
                             skipLine = True
                             break
                     if skipLine:
                         skipLine = False
                         continue
+
+                    # 置換すべき文字列があったなら置換する
+                    for ri in range(len(self.__replace_source)):
+                        t = re.sub(
+                            self.__replace_source[ri],
+                            self.__replace_target[ri],
+                            t
+                        )
 
                     textlines.append(t)
                 # 行が一つ以上抽出されたなら抜け出す
@@ -315,8 +334,8 @@ class MyFileDropTarget(wx.FileDropTarget):
                     # 図表の説明は本文を寸断している事が多いため、
                     # 図表を示す文字列が文頭に現れた場合は別口で処理する
                     # 例：Fig. 1. | Figure2: | Table 3. など
-                    if search(r"^(Fig\.|Figure|Table)\s*\d+(\.|:)",
-                              textlines[i], flags=IGNORECASE):
+                    if re.search(r"^(Fig\.|Figure|Table)\s*\d+(\.|:)",
+                              textlines[i], flags=re.IGNORECASE):
                         chartParagraph = True
 
                     # 待ち時間を短くするために、DeepLの制限ギリギリまで文字数を詰める
@@ -343,14 +362,14 @@ class MyFileDropTarget(wx.FileDropTarget):
                     # その他return_linesに含まれる正規表現に当てはまればそこを文末と見なす
                     return_flag = False
                     for rl in self.__return_lines:
-                        if search(rl, textlines[i], flags=IGNORECASE):
+                        if re.search(rl, textlines[i], flags=re.IGNORECASE):
                             return_flag = True
                             break
 
                     # ただし、よくある略語だったりする場合は文末とは見なさない
                     if return_flag:
                         for ril in self.__return_ignore_lines:
-                            if search(ril, textlines[i]):
+                            if re.search(ril, textlines[i]):
                                 return_flag = False
                                 break
 
