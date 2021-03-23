@@ -215,6 +215,8 @@ class MyFileDropTarget(wx.FileDropTarget):
     __replace_target = [
         " "
     ]
+    __add_japanese_return = True    # 日本語の文章において一文ごとに改行
+    __return_type_markdown = True   # その際の改行をMarkdown式にする
 
     def __init__(self, window):
         wx.FileDropTarget.__init__(self)
@@ -425,8 +427,25 @@ class MyFileDropTarget(wx.FileDropTarget):
     def __tl_and_write(self, paragraphs, f):
         translated = self.__deepLManager.translate(
             "\n".join(paragraphs)).splitlines()
+
+        tl_processed = []
+        for tl in translated:
+            if self.__add_japanese_return:
+                # 翻訳文を一文ごとに開業する
+                if self.__return_type_markdown:
+                    # Markdown方式の改行
+                    tl = re.sub(r"(。|．)", "。  \n", tl)
+                else:
+                    # 通常の改行
+                    tl = re.sub(r"(。|．)", "。\n", tl)
+            else:
+                # 改行しない
+                tl = re.sub(r"．", "。", tl)    # 句点を統一
+            tl_processed.append(tl)
+
         for i in range(len(paragraphs)):
-            f.write(paragraphs[i] + "\n\n" + translated[i] + "\n\n")
+            f.write(paragraphs[i] + "\n\n" + tl_processed[i] +
+                    "\n" if self.__add_japanese_return else "\n\n")
 
 
 class WindowFrame(wx.Frame):
