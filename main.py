@@ -163,9 +163,30 @@ class MyFileDropTarget(wx.FileDropTarget):
     # このリストに含まれる正規表現に当てはまる文字列で翻訳を打ち切る
     __end_lines = [r"^references?$"]
     # このリストに含まれる正規表現に当てはまる文字列は無視する
-    __ignore_lines = [r"^ACM Trans", r"^[0-9]:[0-9]", r"[0-9]:[0-9]$", r"•$", r"Peng Wang, Lingjie Liu, Nenglun Chen, Hung-Kuo Chu, Christian Theobalt, and Wenping Wang$"]
+    __ignore_lines = [
+        r"^\s*ACM Trans",
+        r"^\s*[0-9]:[0-9]\s*$",     # ページ数
+        r"^\s*[0-9]+\s*of\s*[0-9]+\s*$"     # ページ数
+        r"•$",
+        r"Peng Wang, Lingjie Liu, Nenglun Chen, Hung-Kuo Chu, Christian Theobalt, and Wenping Wang$",
+        r"^\s*Multimodal Technologies and Interact\s*",
+        r"^www.mdpi.com/journal/mti$",
+        r"^\s*Li et al.\s*$",
+        r"^\s*Exertion-Aware Path Generation\s*$"
+    ]
     # このリストに含まれる正規表現に当てはまる文字列がある行で改行する
-    __return_lines = [r"(\.|:|\([0-9]+\))\s*$", r"[0-9]+\s*\.?\s*introduction", r"[0-9]+\s*\.?\s*related works?", r"[0-9]+\s*\.?\s*overview", r"[0-9]+\s*\.?\s*algorithm", r"[0-9]+\s*\.?\s*experimental results", r"[0-9]+\s*\.?\s*conclusions", r"^acknowledgements$", r"^references?$"]
+    __return_lines = [
+        r"(\.|:|;|\([0-9]+\))\s*$",   # 文末(計算式や箇条書きなども含む)
+        r"^\s*([0-9]+\s*\.\s*)+.{,45}\s*$"    # 見出し
+        r"[0-9]+\s*\.?\s*introduction",
+        r"[0-9]+\s*\.?\s*related works?",
+        r"[0-9]+\s*\.?\s*overview",
+        r"[0-9]+\s*\.?\s*algorithm",
+        r"[0-9]+\s*\.?\s*experimental results",
+        r"[0-9]+\s*\.?\s*conclusions",
+        r"^acknowledgements$",
+        r"^references?$"
+    ]
 
     def __init__(self, window):
         wx.FileDropTarget.__init__(self)
