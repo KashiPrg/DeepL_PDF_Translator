@@ -271,9 +271,6 @@ class MyFileDropTarget(wx.FileDropTarget):
                         skipLine = False
                         continue
 
-                    # 行末が"-"の場合は取り除く
-                    if t[-1] == "-":
-                        t = t[:-1]
                     textlines.append(t)
                 # 行が一つ以上抽出されたなら抜け出す
                 if len(textlines) != 0:
@@ -387,11 +384,19 @@ class MyFileDropTarget(wx.FileDropTarget):
                                 self.__tl_and_write(paragraphs, f)
                         chartParagraph = False
                     else:
-                        # 文末でない場合はスペースを加えた文字列をバッファに追加する
-                        if chartParagraph:
-                            chart_buffer += textlines[i] + " "
+                        # 文末でない場合は末尾に適切な処理を施してバッファに追加
+                        temp = ""
+                        if textlines[i][-1] == "-":
+                            # 文末がハイフンなら除く
+                            temp = textlines[i][:-1]
                         else:
-                            par_buffer += textlines[i] + " "
+                            # そうでないならスペース追加
+                            temp = textlines[i] + " "
+
+                        if chartParagraph:
+                            chart_buffer += temp
+                        else:
+                            par_buffer += temp
 
         self.__deepLManager.closeWindow()
 
