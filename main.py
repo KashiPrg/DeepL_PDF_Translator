@@ -111,7 +111,7 @@ class DeepLManager:
             "lmt__textarea_base_style"
         )
         # Ctrl+Aで全選択し、前の文を消しつつ原文を入力
-        source_textarea.send_keys(Keys.CONTROL, "a")
+        source_textarea.send_keys(Keys.CONTROL, Keys.COMMAND, "a")
         source_textarea.send_keys(text)
 
         # 最初に5秒待つ

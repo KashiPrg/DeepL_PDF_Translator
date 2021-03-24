@@ -5,7 +5,7 @@ PDFファイルから人力で文章をコピーして、随所に挟まる改�
 
 ## 使い方
 
-1. `pip_install.bat`を起動するか、`pip install -r requirements.txt`で必要なライブラリを入手してください。パーミッションエラーでインストールが正常に完了しない場合は、管理者権限で実行してください。
+1. `pip_install.bat`を起動するか(Windows)、`pip install -r requirements.txt`で必要なライブラリを入手してください。事前に`pip install --upgrade pip`でpipをアップデートしておくと、エラーが減るかもしれません。パーミッションエラーでインストールが正常に完了しない場合は、管理者権限で実行してください。
 2. `drivers`ディレクトリに、利用するブラウザのバージョンに合うWebDriverを入れてください。入手先は**動作環境**の欄に記載します。同梱していない理由は、再配布に関わるトラブルを回避するためです。
 3. `python main.py`で起動するとウィンドウが出るので、そこに翻訳したいPDFファイルをドラッグ&ドロップしてください。複数ファイルの入力にも対応しています。
 4. 翻訳が終わると`output`ディレクトリにtxtファイルが出力されます。
@@ -15,7 +15,7 @@ PDFファイルから人力で文章をコピーして、随所に挟まる改�
 
 ## 動作環境
 
-OS: Windows, MacOS(動作未確認), Linux系(動作未確認)  
+OS: Windows, MacOS, Linux系(動作未確認)  
 Python: 3.7.9
 - Chrome
 - Edge
@@ -25,7 +25,47 @@ Python: 3.7.9
 [WebDriver for Edge](https://developer.microsoft.com/en-us/microsoft-edge/tools/webdriver/#downloads)  
 [WebDriver for Firefox](https://github.com/mozilla/geckodriver/releases)
 
+### 注意点
+
+<details>
+<summary>MacOSで実行する場合</summary>
+
+```
+This program needs access to the screen. Please run with a Framework build of python, and only when you are logged in on the main display of your Mac.
+```
+
+という出力がなされ、GUIが出現しない場合があります。  
+その場合は、Framework buildのPythonを入手してください。  
+pyenvを利用している場合は、
+
+```
+env PYTHON_CONFIGURE_OPTS="--enable-framework" pyenv install 3.7.9
+```
+
+で入手可能です。その後、
+
+```
+pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+を実行して必要なライブラリをインストールし、対応するWebDriverを`drivers`ディレクトリに入れて起動してください。  
+なお、その際にセキュリティによってWebDriverが起動できない場合があります。  
+その場合は、`システム環境設定 > セキュリティとプライバシー`からWebDriverの実行を許可してください。
+
+</details>
+
+---
+
 ## バージョン履歴
+
+### v0.3.1
+<details open>
+
+- MacOS, Chromeでの動作を確認
+- MacOS環境下にて、DeepLのページで以前の翻訳対象文を削除できない問題を修正
+
+</details>
 
 ### v0.3.0
 <details open>
@@ -39,7 +79,7 @@ Python: 3.7.9
 </details>
 
 ### v0.2.0
-<details open>
+<details>
 
 - MacOS、Linuxに対応(動作未確認)
 - Edge、FireFoxに対応
@@ -48,7 +88,7 @@ Python: 3.7.9
 </details>
 
 ### v0.1.0
-<details open>
+<details>
 
 - 最低限の翻訳機能を実装
 - 文書先頭あたりはレイアウトが複雑なので、有効な翻訳はほぼ無理
@@ -57,3 +97,7 @@ Python: 3.7.9
 - 総評として、全て人力でコピペする労力からは解放されるが、まだまだ修正のコストが高い。
 
 </details>
+
+## 免責事項
+
+私(KashiPrg)は、このアプリケーションによってもたらされたいかなる損害に関しても一切責任を負いません。
