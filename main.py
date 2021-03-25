@@ -218,6 +218,9 @@ class MyFileDropTarget(wx.FileDropTarget):
     __add_japanese_return = True    # 日本語の文章において一文ごとに改行
     __return_type_markdown = True   # その際の改行をMarkdown式にする
 
+    __debug_output_extracted_text = True    # 抽出されたままのテキストを出力する
+    __debug_output_mode = ""
+
     def __init__(self, window):
         wx.FileDropTarget.__init__(self)
         self.window = window
@@ -320,104 +323,124 @@ class MyFileDropTarget(wx.FileDropTarget):
             # 出力用のディレクトリを作成
             Path("output").mkdir(exist_ok=True)
             # 出力用ファイルのパス
-            outputFilePath = Path("output/" + Path(filenames[fi]).stem + ".txt")
+            outputFilePath = Path(
+                "output/" + Path(filenames[fi]).stem +
+                ("_extracted" if self.__debug_output_extracted_text else "") +
+                ".txt"
+            )
 
             with open(outputFilePath, mode="w", encoding="utf-8") as f:
-                paragraphs = []     # 段落ごとに分けて格納
-                parslen = 0         # paragraphsの総文字数
-                par_buffer = ""     # 今扱っている段落の文字列
-                chart_buffer = ""   # 図表の説明の文字列
-                chartParagraph = False     # 図表の説明の段落を扱っているフラグ
-                tooLongParagraph = False    # 長過ぎる段落を扱っているフラグ
-                tooLongMessage = "(一段落が5000文字以上となる可能性があるため、" + \
-                                 "自動での適切な翻訳ができません。" + \
-                                 "手動で分割して翻訳してください。)\n\n"
-                for i in range(len(textlines)):
-                    # 図表の説明は本文を寸断している事が多いため、
-                    # 図表を示す文字列が文頭に現れた場合は別口で処理する
-                    # 例：Fig. 1. | Figure2: | Table 3. など
-                    if re.search(r"^(Fig\.|Figure|Table)\s*\d+(\.|:)",
-                              textlines[i], flags=re.IGNORECASE):
-                        chartParagraph = True
-
-                    # 待ち時間を短くするために、DeepLの制限ギリギリまで文字数を詰める
-                    # 現在扱っている文字列までの長さを算出
-                    currentLen = parslen + len(textlines[i])
-                    if chartParagraph:
-                        currentLen += len(chart_buffer)
+                if self.__debug_output_extracted_text:
+                    if self.__debug_output_mode == "return":
+                        print(
+                            "改行位置となる行を抽出して" +
+                            str(outputFilePath) + "に出力します。")
+                        for tl in textlines:
+                            for rl in self.__return_lines:
+                                if re.search(rl, tl, flags=re.IGNORECASE):
+                                    f.write(tl + "\n")
                     else:
-                        currentLen += len(par_buffer)
-                    print("processing line " + str(i+1) + "/" + str(len(textlines)) + ".")
+                        print(
+                            "抽出されたテキストをそのまま" +
+                            str(outputFilePath) + "に出力します。")
+                        f.write("\n".join(textlines))
+                else:
+                    paragraphs = []     # 段落ごとに分けて格納
+                    parslen = 0         # paragraphsの総文字数
+                    par_buffer = ""     # 今扱っている段落の文字列
+                    chart_buffer = ""   # 図表の説明の文字列
+                    chartParagraph = False     # 図表の説明の段落を扱っているフラグ
+                    tooLongParagraph = False    # 長過ぎる段落を扱っているフラグ
+                    tooLongMessage = "(一段落が5000文字以上となる可能性があるため、" + \
+                                     "自動での適切な翻訳ができません。" + \
+                                     "手動で分割して翻訳してください。)\n\n"
+                    for i in range(len(textlines)):
+                        # 図表の説明は本文を寸断している事が多いため、
+                        # 図表を示す文字列が文頭に現れた場合は別口で処理する
+                        # 例：Fig. 1. | Figure2: | Table 3. など
+                        if re.search(r"^(Fig\.|Figure|Table)\s*\d+(\.|:)",
+                                     textlines[i], flags=re.IGNORECASE):
+                            chartParagraph = True
 
-                    if not tooLongParagraph and currentLen > 4800:
-                        # 5000文字を超えそうになったら、それまでの段落を翻訳にかける
-                        if parslen > 0:
-                            self.__tl_and_write(paragraphs, f)
-
-                            parslen = 0
-                            paragraphs = []
-                        # 1段落で5000文字を超えるなら、手動での翻訳をお願いする
+                        # 待ち時間を短くするために、DeepLの制限ギリギリまで文字数を詰める
+                        # 現在扱っている文字列までの長さを算出
+                        currentLen = parslen + len(textlines[i])
+                        if chartParagraph:
+                            currentLen += len(chart_buffer)
                         else:
-                            tooLongParagraph = True
+                            currentLen += len(par_buffer)
+                        print("processing line " + str(i+1) +
+                              "/" + str(len(textlines)) + ".")
 
-                    # 文末っぽい表現がされていたり、
-                    # その他return_linesに含まれる正規表現に当てはまればそこを文末と見なす
-                    return_flag = False
-                    for rl in self.__return_lines:
-                        if re.search(rl, textlines[i], flags=re.IGNORECASE):
-                            return_flag = True
-                            break
+                        if not tooLongParagraph and currentLen > 4800:
+                            # 5000文字を超えそうになったら、それまでの段落を翻訳にかける
+                            if parslen > 0:
+                                self.__tl_and_write(paragraphs, f)
 
-                    # ただし、よくある略語だったりする場合は文末とは見なさない
-                    if return_flag:
-                        for ril in self.__return_ignore_lines:
-                            if re.search(ril, textlines[i]):
-                                return_flag = False
+                                parslen = 0
+                                paragraphs = []
+                            # 1段落で5000文字を超えるなら、手動での翻訳をお願いする
+                            else:
+                                tooLongParagraph = True
+
+                        # 文末っぽい表現がされていたり、
+                        # その他return_linesに含まれる正規表現に当てはまればそこを文末と見なす
+                        return_flag = False
+                        for rl in self.__return_lines:
+                            if re.search(rl, textlines[i], flags=re.IGNORECASE):
+                                return_flag = True
                                 break
 
-                    end_of_file = i == len(textlines) - 1   # ファイルの終端フラグ
-                    if return_flag or end_of_file:
-                        # 5000字を超える一段落は、自動での翻訳を行わない
-                        # ファイルの終端でもそれは変わらない
-                        temp = ""
-                        if tooLongParagraph:
-                            if chartParagraph:
-                                temp = chart_buffer
-                                chart_buffer = ""
-                            else:
-                                temp = par_buffer
-                                par_buffer = ""
-                            f.write(temp + textlines[i] +
-                                    "\n\n" + tooLongMessage)
-                        else:
-                            # 長すぎない場合は翻訳待ちの段落として追加
-                            if chartParagraph:
-                                temp = chart_buffer
-                                chart_buffer = ""
-                            else:
-                                temp = par_buffer
-                                par_buffer = ""
-                            temp += textlines[i]
-                            parslen += len(temp)
-                            paragraphs.append(temp)
-                            # ファイルの終端の場合は最後に翻訳と書き込みを行う
-                            if end_of_file:
-                                self.__tl_and_write(paragraphs, f)
-                        chartParagraph = False
-                    else:
-                        # 文末でない場合は末尾に適切な処理を施してバッファに追加
-                        temp = ""
-                        if textlines[i][-1] == "-":
-                            # 文末がハイフンなら除く
-                            temp = textlines[i][:-1]
-                        else:
-                            # そうでないならスペース追加
-                            temp = textlines[i] + " "
+                        # ただし、よくある略語だったりする場合は文末とは見なさない
+                        if return_flag:
+                            for ril in self.__return_ignore_lines:
+                                if re.search(ril, textlines[i]):
+                                    return_flag = False
+                                    break
 
-                        if chartParagraph:
-                            chart_buffer += temp
+                        end_of_file = i == len(textlines) - 1   # ファイルの終端フラグ
+                        if return_flag or end_of_file:
+                            # 5000字を超える一段落は、自動での翻訳を行わない
+                            # ファイルの終端でもそれは変わらない
+                            temp = ""
+                            if tooLongParagraph:
+                                if chartParagraph:
+                                    temp = chart_buffer
+                                    chart_buffer = ""
+                                else:
+                                    temp = par_buffer
+                                    par_buffer = ""
+                                f.write(temp + textlines[i] +
+                                        "\n\n" + tooLongMessage)
+                            else:
+                                # 長すぎない場合は翻訳待ちの段落として追加
+                                if chartParagraph:
+                                    temp = chart_buffer
+                                    chart_buffer = ""
+                                else:
+                                    temp = par_buffer
+                                    par_buffer = ""
+                                temp += textlines[i]
+                                parslen += len(temp)
+                                paragraphs.append(temp)
+                                # ファイルの終端の場合は最後に翻訳と書き込みを行う
+                                if end_of_file:
+                                    self.__tl_and_write(paragraphs, f)
+                            chartParagraph = False
                         else:
-                            par_buffer += temp
+                            # 文末でない場合は末尾に適切な処理を施してバッファに追加
+                            temp = ""
+                            if textlines[i][-1] == "-":
+                                # 文末がハイフンなら除く
+                                temp = textlines[i][:-1]
+                            else:
+                                # そうでないならスペース追加
+                                temp = textlines[i] + " "
+
+                            if chartParagraph:
+                                chart_buffer += temp
+                            else:
+                                par_buffer += temp
 
         self.__deepLManager.closeWindow()
 
