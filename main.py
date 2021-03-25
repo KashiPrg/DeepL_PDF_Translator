@@ -462,12 +462,14 @@ class MyFileDropTarget(wx.FileDropTarget):
                             currentLen += len(chart_buffer)
                         else:
                             currentLen += len(par_buffer)
-                        print("processing line " + str(i+1) +
-                              "/" + str(len(textlines)) + ".")
 
                         if not tooLongParagraph and currentLen > 4800:
                             # 5000文字を超えそうになったら、それまでの段落を翻訳にかける
                             if parslen > 0:
+                                pp_log = (
+                                    "processing line " + str(i+1) +
+                                    "/" + str(len(textlines)) + "...")
+                                print(pp_log)
                                 self.__tl_and_write(paragraphs, f)
 
                                 parslen = 0
@@ -518,6 +520,7 @@ class MyFileDropTarget(wx.FileDropTarget):
                                 paragraphs.append(temp)
                                 # ファイルの終端の場合は最後に翻訳と書き込みを行う
                                 if end_of_file:
+                                    print("Processing last line...")
                                     self.__tl_and_write(paragraphs, f)
                             chartParagraph = False
                         else:
