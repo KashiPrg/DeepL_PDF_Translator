@@ -192,17 +192,54 @@ class MyFileDropTarget(wx.FileDropTarget):
     # markdown方式で出力する時、この正規表現に当てはまる行を見出しとして扱う
     __header_lines = [
         r"^\s*([0-9]+\s*\.\s*)+.{3,45}\s*$",     # "1.2.3. aaaa" などにヒット
-        r"^\s*([0-9]+\s*\.\s*)*[0-9]+\s*.{3,45}\s*$"     # "1.2.3 aaaa" などにヒット
+        r"^\s*([0-9]+\s*\.\s*)*[0-9]+\s*.{3,45}\s*$",    # "1.2.3 aaaa" などにヒット
+        r"^([0-9]+\s*\.?)?\s*introduction$",    # 数字がない場合にも対応
+        r"^([0-9]+\s*\.?)?\s*related works?$",
+        r"^([0-9]+\s*\.?)?\s*overview$",
+        r"^([0-9]+\s*\.?)?\s*algorithm$",
+        r"^([0-9]+\s*\.?)?\s*experimental results?$",
+        r"^([0-9]+\s*\.?)?\s*conclusions?$",
+        r"^([0-9]+\s*\.?)?\s*acknowledgements?$",
+        r"^([0-9]+\s*\.?)?\s*references?$"
     ]
     # 見出しの大きさを決定するためのパターン
     # header_linesの要素と対応する形で記述する
     __header_depth_count = [
         r"[0-9]+\s*\.\s*",  # 1.2.3. の"数字."の数が多いほど見出しが小さくなる(#の数が多くなる)
-        r"[0-9]+"
+        r"[0-9]+",
+        r"^$",
+        r"^$",
+        r"^$",
+        r"^$",
+        r"^$",
+        r"^$",
+        r"^$",
+        r"^$"
+    ]
+    # 見出しの日本語訳の先頭の数字などを消すためのパターン
+    __header_japanese_remove = [
+        r"[0-9]+\s*\.\s*",
+        r"\s*([0-9]+\s*\.\s*)*[0-9]+\s*",
+        r"[0-9]+\s*\.\s*",
+        r"[0-9]+\s*\.\s*",
+        r"[0-9]+\s*\.\s*",
+        r"[0-9]+\s*\.\s*",
+        r"[0-9]+\s*\.\s*",
+        r"[0-9]+\s*\.\s*",
+        r"[0-9]+\s*\.\s*",
+        r"[0-9]+\s*\.\s*"
     ]
     # 見出しの最大の大きさ 1が最大で6が最小
     # header_linesの要素と対応する形で記述する
     __header_max_size = [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
         2,
         2
     ]
@@ -535,7 +572,7 @@ class MyFileDropTarget(wx.FileDropTarget):
                             self.__header_depth_count[j], paragraphs[i])))
                         # 日本語の見出し部分の先頭(1.2.など)を削除
                         tl_processed[i] = re.sub(
-                            self.__header_depth_count[j],
+                            self.__header_japanese_remove[j],
                             "",
                             tl_processed[i])
                         # 英語の見出しとその直下に見出しの日本語訳を出力
