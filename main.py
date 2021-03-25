@@ -166,7 +166,7 @@ class MyFileDropTarget(wx.FileDropTarget):
     __ignore_lines = [
         r"^\s*ACM Trans",
         r"^\s*[0-9]:[0-9]\s*$",     # ページ数
-        r"^\s*[0-9]+\s*of\s*[0-9]+\s*$"     # ページ数
+        r"^\s*[0-9]+\s*of\s*[0-9]+\s*$",     # ページ数
         r"•$",
         r"Peng Wang, Lingjie Liu, Nenglun Chen, Hung-Kuo Chu, Christian Theobalt, and Wenping Wang$",
         r"^\s*Multimodal Technologies and Interact\s*",
@@ -177,7 +177,7 @@ class MyFileDropTarget(wx.FileDropTarget):
     # このリストに含まれる正規表現に当てはまる文字列がある行で改行する
     __return_lines = [
         r"(\.|:|;|\([0-9]+\))\s*$",   # 文末(計算式や箇条書きなども含む)
-        r"^\s*([0-9]+\s*\.\s*)+.{,45}\s*$"    # 見出し
+        r"^\s*([0-9]+\s*\.\s*)+.{3,45}\s*$",    # 見出し
         r"[0-9]+\s*\.?\s*introduction",
         r"[0-9]+\s*\.?\s*related works?",
         r"[0-9]+\s*\.?\s*overview",
@@ -186,6 +186,20 @@ class MyFileDropTarget(wx.FileDropTarget):
         r"[0-9]+\s*\.?\s*conclusions",
         r"^acknowledgements$",
         r"^references?$"
+    ]
+    # markdown方式で出力する時、この正規表現に当てはまる行を見出しとして扱う
+    __header_lines = [
+        r"^\s*([0-9]+\s*\.\s*)+.{3,45}\s*$"     # "1.2.3. aaaa" などにヒット
+    ]
+    # 見出しの大きさを決定するためのパターン
+    # header_linesの要素と対応する形で記述する
+    __header_depth_count = [
+        r"[0-9]+\s*\.\s*"  # 1.2.3. の"数字."の数が多いほど見出しが小さくなる(#の数が多くなる)
+    ]
+    # 見出しの最大の大きさ 1が最大で6が最小
+    # header_linesの要素と対応する形で記述する
+    __header_max_size = [
+        2
     ]
     # このリストに含まれる正規表現に当てはまる文字列があるとき、
     # 改行対象でも改行しない
@@ -216,9 +230,9 @@ class MyFileDropTarget(wx.FileDropTarget):
         " "
     ]
     __add_japanese_return = True    # 日本語の文章において一文ごとに改行
-    __return_type_markdown = True   # その際の改行をMarkdown式にする
+    __output_type_markdown = True   # 出力をMarkdown式にする
 
-    __debug_output_extracted_text = True    # 抽出されたままのテキストを出力する
+    __debug_output_extracted_text = False    # 抽出されたままのテキストを出力する
     __debug_output_mode = ""
 
     def __init__(self, window):
@@ -330,20 +344,39 @@ class MyFileDropTarget(wx.FileDropTarget):
             )
 
             with open(outputFilePath, mode="w", encoding="utf-8") as f:
+                # デバッグ用の抽出テキスト出力モード
                 if self.__debug_output_extracted_text:
+                    # 改行位置を出力
                     if self.__debug_output_mode == "return":
                         print(
-                            "改行位置となる行を抽出して" +
+                            "改行位置となり得る行を抽出して" +
                             str(outputFilePath) + "に出力します。")
                         for tl in textlines:
                             for rl in self.__return_lines:
                                 if re.search(rl, tl, flags=re.IGNORECASE):
                                     f.write(tl + "\n")
+                                    break
+                    # 改行を無視する位置を出力
+                    elif self.__debug_output_mode == "return_ignore":
+                        print(
+                            "改行を無視する行を抽出して" +
+                            str(outputFilePath) + "に出力します。")
+                        for tl in textlines:
+                            for rl in self.__return_lines:
+                                if re.search(rl, tl, flags=re.IGNORECASE):
+                                    for ril in self.__return_ignore_lines:
+                                        if re.search(ril, tl,
+                                                     flags=re.IGNORECASE):
+                                            f.write(tl + "\n")
+                                            break
+                                    break
+                    # ベタ打ち
                     else:
                         print(
                             "抽出されたテキストをそのまま" +
                             str(outputFilePath) + "に出力します。")
                         f.write("\n".join(textlines))
+                # 通常の翻訳モード
                 else:
                     paragraphs = []     # 段落ごとに分けて格納
                     parslen = 0         # paragraphsの総文字数
@@ -454,8 +487,8 @@ class MyFileDropTarget(wx.FileDropTarget):
         tl_processed = []
         for tl in translated:
             if self.__add_japanese_return:
-                # 翻訳文を一文ごとに開業する
-                if self.__return_type_markdown:
+                # 翻訳文を一文ごとに改行する
+                if self.__output_type_markdown:
                     # Markdown方式の改行
                     tl = re.sub(r"(。|．)", "。  \n", tl)
                 else:
@@ -467,8 +500,31 @@ class MyFileDropTarget(wx.FileDropTarget):
             tl_processed.append(tl)
 
         for i in range(len(paragraphs)):
-            f.write(paragraphs[i] + "\n\n" + tl_processed[i] +
-                    "\n" if self.__add_japanese_return else "\n\n")
+            # Markdown方式で出力する場合は見出しに#を加える
+            header_line_hit = False
+            if self.__output_type_markdown:
+                for j in range(len(self.__header_lines)):
+                    if re.search(self.__header_lines[j],
+                                 paragraphs[i], flags=re.IGNORECASE):
+                        header_line_hit = True
+                        # 見出しの深さを算出
+                        depth = max(1, len(re.findall(
+                            self.__header_depth_count[j], paragraphs[i])))
+                        # 日本語の見出し部分の先頭(1.2.など)を削除
+                        tl_processed[i] = re.sub(
+                            self.__header_depth_count[j],
+                            "",
+                            tl_processed[i])
+                        # 英語の見出しとその直下に見出しの日本語訳を出力
+                        f.write(
+                            "#" * min(self.__header_max_size[j] + depth - 1, 6)
+                            + " " + paragraphs[i] + "\n" + tl_processed[i] +
+                            ("\n" if tl_processed[i][-1] == "\n" else "\n\n"))
+                        break
+            if not header_line_hit:
+                # 見出しでなかったり、markdown式の出力を行わない場合は普通に出力
+                f.write(paragraphs[i] + "\n\n" + tl_processed[i] +
+                        "\n" if tl_processed[i][-1] == "\n" else "\n\n")
 
 
 class WindowFrame(wx.Frame):
