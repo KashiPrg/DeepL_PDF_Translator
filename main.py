@@ -294,6 +294,10 @@ class MyFileDropTarget(wx.FileDropTarget):
 
     # ウィンドウにファイルがドロップされた時
     def OnDropFiles(self, x, y, filenames):
+        # 各種チェックボックスの値を取得
+        self.__add_japanese_return = self.window.chkbx_japanese_return.Value
+        self.__output_type_markdown = self.window.chkbx_return_markdown.Value
+
         # 選択に応じたブラウザを用意
         self.__deepLManager = DeepLManager(self.window.GetBrowserSelection())
 
@@ -604,8 +608,29 @@ class WindowFrame(wx.Frame):
 
         self.browser_combo = WindowFrame.BrowserCombo(p)
         self.browser_combo.SetStringSelection(Browser.CHROME.value)
-        sizer.Add(self.browser_combo,
-                  flag=wx.ALIGN_LEFT | wx.TOP | wx.LEFT | wx.BOTTOM, border=10)
+        sizer.Add(
+            self.browser_combo,
+            flag=wx.ALIGN_LEFT | wx.TOP | wx.LEFT | wx.BOTTOM, border=10)
+
+        self.chkbx_japanese_return = wx.CheckBox(
+            p, -1, "翻訳文を一文ごとに改行する")
+        self.chkbx_japanese_return.SetToolTip(
+            "出力された日本語の翻訳文を、\"。\"の位置で改行します"
+        )
+        self.chkbx_japanese_return.SetValue(True)
+        sizer.Add(
+            self.chkbx_japanese_return,
+            flag=wx.ALIGN_LEFT | wx.TOP | wx.LEFT, border=10)
+
+        self.chkbx_return_markdown = wx.CheckBox(
+            p, -1, "出力をMarkdown式にする")
+        self.chkbx_return_markdown.SetToolTip(
+            "見出しや改行をMarkdown式にします"
+        )
+        self.chkbx_return_markdown.SetValue(True)
+        sizer.Add(
+            self.chkbx_return_markdown,
+            flag=wx.ALIGN_LEFT | wx.LEFT, border=10)
 
         p.SetSizer(sizer)
 
