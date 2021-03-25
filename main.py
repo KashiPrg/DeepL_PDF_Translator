@@ -236,6 +236,15 @@ class MyFileDropTarget(wx.FileDropTarget):
         " ",
         " "
     ]
+
+    # markdown用の置換リスト
+    __markdown_replace_source = [
+        "•"
+    ]
+    __markdown_replace_target = [
+        "-"
+    ]
+
     __add_japanese_return = True    # 日本語の文章において一文ごとに改行
     __output_type_markdown = True   # 出力をMarkdown式にする
 
@@ -315,6 +324,13 @@ class MyFileDropTarget(wx.FileDropTarget):
                             self.__replace_target[ri],
                             t
                         )
+                    if self.__output_type_markdown:
+                        for mri in range(len(self.__markdown_replace_source)):
+                            t = re.sub(
+                                self.__markdown_replace_source[mri],
+                                self.__markdown_replace_target[mri],
+                                t
+                            )
 
                     textlines.append(t)
                 # 行が一つ以上抽出されたなら抜け出す

@@ -75,6 +75,7 @@ pip install -r requirements.txt
 
 - 見出しの識別が上手く動作しなかった問題を修正
 - Markdown式で見出しを出力する機能を追加
+- Markdown用の除去/置換機能を追加
 
 </details>
 
