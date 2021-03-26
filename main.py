@@ -101,7 +101,7 @@ class DeepLManager:
         self.__webDriver.get("https://www.deepl.com/translator")
 
     # 渡された文を翻訳にかけ、訳文を返す
-    def translate(self, text, first_wait_secs=30, wait_secs_max=60):
+    def translate(self, text, first_wait_secs=10, wait_secs_max=60):
         # DeepLのページが開かれていなければ開く
         self.openDeepLPage()
 
@@ -128,8 +128,13 @@ class DeepLManager:
                     "div.lmt__progress_popup.lmt__progress_popup--visible."
                     "lmt__progress_popup--visible_2")
             except sce.NoSuchElementException:
-                # ポップアップが無ければ抜け出す
-                break
+                # ポップアップが無く、かつ[...]が無ければ翻訳完了として抜け出す
+                translated = self.__webDriver.find_element_by_css_selector(
+                    "textarea.lmt__textarea.lmt__target_textarea."
+                    "lmt__textarea_base_style"
+                ).get_property("value")
+                if not re.search(r"\[\.\.\.\]", translated):
+                    break
             # ポップアップがあり、かつ制限時間内ならばもう1秒待つ
             if i < wait_secs_sub - 1:
                 sleep(1.0)
@@ -284,6 +289,8 @@ class MyFileDropTarget(wx.FileDropTarget):
 
     __add_japanese_return = True    # 日本語の文章において一文ごとに改行
     __output_type_markdown = True   # 出力をMarkdown式にする
+    __output_source = True     # 英語テキストを出力する
+    __source_as_comment = True  # Markdown形式において、英語をコメントとして出力する
 
     __debug_output_extracted_text = False    # 抽出されたままのテキストを出力する
     __debug_output_mode = ""
@@ -297,6 +304,8 @@ class MyFileDropTarget(wx.FileDropTarget):
         # 各種チェックボックスの値を取得
         self.__add_japanese_return = self.window.chkbx_japanese_return.Value
         self.__output_type_markdown = self.window.chkbx_return_markdown.Value
+        self.__output_source = self.window.chkbx_output_source.Value
+        self.__source_as_comment = self.window.chkbx_source_as_comment.Value
 
         # 選択に応じたブラウザを用意
         self.__deepLManager = DeepLManager(self.window.GetBrowserSelection())
@@ -574,30 +583,43 @@ class MyFileDropTarget(wx.FileDropTarget):
                     if re.search(self.__header_lines[j],
                                  paragraphs[i], flags=re.IGNORECASE):
                         header_line_hit = True
-                        # 見出しの深さを算出
+                        # 見出しの深さを算出 & #を出力
                         depth = max(1, len(re.findall(
                             self.__header_depth_count[j], paragraphs[i])))
-                        # 日本語の見出し部分の先頭(1.2.など)を削除
-                        tl_processed[i] = re.sub(
-                            self.__header_japanese_remove[j],
-                            "",
-                            tl_processed[i])
-                        # 英語の見出しとその直下に見出しの日本語訳を出力
+                        f.write("#" * min(self.__header_max_size[j] +
+                                depth - 1, 6) + " ")
+
+                        # 原文の出力を行う場合
+                        if self.__output_source:
+                            # 原文の見出しとその直下に見出しの日本語訳を出力
+                            f.write(paragraphs[i] + "\n")
+                            # 日本語の見出し部分の先頭(1.2.など)を削除
+                            tl_processed[i] = re.sub(
+                                self.__header_japanese_remove[j],
+                                "",
+                                tl_processed[i])
+
                         f.write(
-                            "#" * min(self.__header_max_size[j] + depth - 1, 6)
-                            + " " + paragraphs[i] + "\n" + tl_processed[i] +
+                            tl_processed[i] +
                             ("\n" if tl_processed[i][-1] == "\n" else "\n\n"))
                         break
+                if not header_line_hit:
+                    if self.__output_source and self.__source_as_comment:
+                        # Markdown式の出力かつ原文の出力が有効で、
+                        # 見出しでない場合はコメントとして加工する
+                        paragraphs[i] = "%%" + paragraphs[i] + "%%"
             if not header_line_hit:
-                # 見出しでなかったり、markdown式の出力を行わない場合は普通に出力
-                f.write(paragraphs[i] + "\n\n" + tl_processed[i] +
-                        "\n" if tl_processed[i][-1] == "\n" else "\n\n")
+                # 見出しでない場合の出力
+                if self.__output_source:
+                    f.write(paragraphs[i] + "\n\n")
+                f.write(tl_processed[i] +
+                        ("\n" if tl_processed[i][-1] == "\n" else "\n\n"))
 
 
 class WindowFrame(wx.Frame):
     def __init__(self):
         wx.Frame.__init__(self, None,
-                          title="DeepL PDF Translator", size=(500, 200))
+                          title="DeepL PDF Translator", size=(500, 250))
         p = wx.Panel(self)
         sizer = wx.BoxSizer(wx.VERTICAL)
 
@@ -630,6 +652,26 @@ class WindowFrame(wx.Frame):
         self.chkbx_return_markdown.SetValue(True)
         sizer.Add(
             self.chkbx_return_markdown,
+            flag=wx.ALIGN_LEFT | wx.LEFT, border=10)
+
+        self.chkbx_output_source = wx.CheckBox(
+            p, -1, "原文を出力する")
+        self.chkbx_output_source.SetToolTip(
+            "原文と翻訳文をセットで出力します。"
+        )
+        self.chkbx_output_source.SetValue(True)
+        sizer.Add(
+            self.chkbx_output_source,
+            flag=wx.ALIGN_LEFT | wx.LEFT, border=10)
+
+        self.chkbx_source_as_comment = wx.CheckBox(
+            p, -1, "原文をコメントとして出力する")
+        self.chkbx_source_as_comment.SetToolTip(
+            "Markdown形式において、原文をコメントとして出力します。"
+        )
+        self.chkbx_source_as_comment.SetValue(True)
+        sizer.Add(
+            self.chkbx_source_as_comment,
             flag=wx.ALIGN_LEFT | wx.LEFT, border=10)
 
         p.SetSizer(sizer)
