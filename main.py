@@ -1,291 +1,15 @@
-import platform
 import re
-import selenium.common.exceptions as sce
 import wx
 
-from enum import Enum
+from deeplmanager import Browser, DeepLManager
 from pathlib import Path
 from pdfminer.high_level import extract_text
 from pdfminer.pdfparser import PDFSyntaxError
-from selenium import webdriver
-from selenium.webdriver.common.keys import Keys
-from sys import stderr
-from time import sleep
-
-
-class Browser(Enum):
-    CHROME = "Chrome"
-    EDGE = "Edge"
-    FIREFOX = "FireFox"
-
-
-# DeepLでの翻訳を管理する
-class DeepLManager:
-    webDriverURLs = {
-        Browser.CHROME.value:
-            "https://sites.google.com/a/chromium.org/chromedriver/downloads",
-        Browser.EDGE.value:
-            "https://developer.microsoft.com/en-us/" +
-            "microsoft-edge/tools/webdriver/#downloads",
-        Browser.FIREFOX.value:
-            "https://github.com/mozilla/geckodriver/releases"
-    }
-
-    def __init__(self, browser):
-        try:
-            if platform.system() == "Windows":
-                # Windowsなら実行ファイルに拡張子が付く
-                if browser == Browser.CHROME.value:
-                    self.__webDriver = webdriver.Chrome(
-                        "./drivers/chromedriver.exe")
-                elif browser == Browser.EDGE.value:
-                    self.__webDriver = webdriver.Edge(
-                        "./drivers/msedgedriver.exe")
-                elif browser == Browser.FIREFOX.value:
-                    # Firefoxはなぜかexecutable_pathで指定しないとエラーが起きる
-                    self.__webDriver = webdriver.Firefox(
-                        executable_path="./drivers/geckodriver.exe")
-                else:
-                    self.__invalidBrowser()
-            else:
-                # MacやLinux(Windows以外)なら拡張子は付かない
-                if browser == Browser.CHROME.value:
-                    self.__webDriver = webdriver.Chrome(
-                        "./drivers/chromedriver")
-                elif browser == Browser.EDGE.value:
-                    self.__webDriver = webdriver.Edge(
-                        "./drivers/msedgedriver")
-                elif browser == Browser.FIREFOX.value:
-                    self.__webDriver = webdriver.Firefox(
-                        executable_path="./drivers/geckodriver")
-                else:
-                    self.__invalidBrowser()
-        except sce.WebDriverException:
-            wx.LogError(
-                browser + "、または" + browser +
-                "のWebDriverがインストールされていません。\n\n" +
-                browser + "をインストールするか、" +
-                browser + "のWebDriverを\n" +
-                self.webDriverURLs[browser] + " から入手し、" +
-                "driversディレクトリに配置してください。"
-            )
-            exit(1)
-
-    def __invalidBrowser(self):
-        wx.LogError("ブラウザの指定が無効な値です。")
-        exit(1)
-
-    # DeepLのタブを開く
-    def openDeepLPage(self):
-        # 今のタブがDeepLなら何もしない
-        try:
-            if self.__webDriver.current_url == \
-               "https://www.deepl.com/translator":
-                return
-        except AttributeError:
-            print("Error: webDriver is not initiated.", file=stderr)
-            exit(1)
-
-        # 他のタブにそのページがあるならそれを開いて終わり
-        for tab in self.__webDriver.window_handles:
-            self.__webDriver.switch_to.window(tab)
-            if self.__webDriver.current_url == \
-               "https://www.deepl.com/translator":
-                return
-
-        # もしDeepLのページを開いているタブが無ければ新たに開く
-        # 新しいタブを開き、そのタブに移動
-        self.__webDriver.execute_script("window.open('', '_blank');")
-        self.__webDriver.switch_to.window(self.__webDriver.window_handles[-1])
-        # DeepLに接続
-        self.__webDriver.get("https://www.deepl.com/translator")
-
-    # 渡された文を翻訳にかけ、訳文を返す
-    def translate(self, text, first_wait_secs=10, wait_secs_max=60):
-        # DeepLのページが開かれていなければ開く
-        self.openDeepLPage()
-
-        # 原文の入力欄を取得
-        source_textarea = self.__webDriver.find_element_by_css_selector(
-            "textarea.lmt__textarea.lmt__source_textarea."
-            "lmt__textarea_base_style"
-        )
-        # Ctrl+Aで全選択し、前の文を消しつつ原文を入力
-        source_textarea.send_keys(Keys.CONTROL, Keys.COMMAND, "a")
-        source_textarea.send_keys(text)
-
-        # 最初に5秒待つ
-        sleep(first_wait_secs)
-
-        # 翻訳の進行度を示すポップアップが無ければ翻訳完了と見なす
-        # 制限時間内に翻訳が終了しなければ翻訳失敗と見なす
-        wait_secs_sub = int(wait_secs_max - first_wait_secs)
-        for i in range(wait_secs_sub):
-            try:
-                # 通常時はdiv.lmt_progress_popupだが、ポップアップが可視化するときは
-                # lmt_progress_popup--visible(_2)が追加される
-                _ = self.__webDriver.find_element_by_css_selector(
-                    "div.lmt__progress_popup.lmt__progress_popup--visible."
-                    "lmt__progress_popup--visible_2")
-            except sce.NoSuchElementException:
-                # ポップアップが無く、かつ[...]が無ければ翻訳完了として抜け出す
-                translated = self.__webDriver.find_element_by_css_selector(
-                    "textarea.lmt__textarea.lmt__target_textarea."
-                    "lmt__textarea_base_style"
-                ).get_property("value")
-                if not re.search(r"\[\.\.\.\]", translated):
-                    break
-            # ポップアップがあり、かつ制限時間内ならばもう1秒待つ
-            if i < wait_secs_sub - 1:
-                sleep(1.0)
-                continue
-            else:
-                # 制限時間を過ぎたら失敗
-                # 段落と同じ数だけメッセージを生成
-                num_pars = len(text.splitlines())
-                messages = ["(翻訳に" + str(wait_secs_max) +
-                            "秒以上を要するため失敗と見なしました)"
-                            for _ in range(num_pars)]
-                return "\n".join(messages)
-
-        # 訳文の出力欄を取得し、訳文を取得
-        translated = self.__webDriver.find_element_by_css_selector(
-            "textarea.lmt__textarea.lmt__target_textarea."
-            "lmt__textarea_base_style"
-        ).get_property("value")
-
-        return translated
-
-    # ブラウザのウィンドウを閉じる
-    def closeWindow(self):
-        self.__webDriver.quit()
+from res import RegularExpressions
 
 
 class MyFileDropTarget(wx.FileDropTarget):
     __deepLManager = None
-    # このリストに含まれる正規表現に当てはまる文字列から翻訳を開始する
-    __start_lines = [r"[0-9]+\s*\.?\s*introduction", r"introduction$"]
-    # このリストに含まれる正規表現に当てはまる文字列で翻訳を打ち切る
-    __end_lines = [r"^references?$"]
-    # このリストに含まれる正規表現に当てはまる文字列は無視する
-    __ignore_lines = [
-        r"^\s*ACM Trans",
-        r"^\s*[0-9]*:[0-9]*\s*$",   # ページ数
-        r"^\s*[0-9]*\s*of\s*[0-9]*\s*$",     # ページ数
-        r"^\s*.\s*$",   # なにか一文字しか無い 後でユーザが何文字まで無視するか設定できるようにしたい
-        r"^.*(.{1,3}\s+){10,}.*$",  # ぶつ切れの語が極端に多い
-        r"Peng Wang, Lingjie Liu, Nenglun Chen, Hung-Kuo Chu, Christian Theobalt, and Wenping Wang$",
-        r"^\s*Multimodal Technologies and Interact\s*",
-        r"^www.mdpi.com/journal/mti$",
-        r"^\s*Li et al\.\s*$",
-        r"^\s*Exertion-Aware Path Generation\s*$"
-    ]
-    # このリストに含まれる正規表現に当てはまる文字列がある行で改行する
-    __return_lines = [
-        r"(\.|:|;|\([0-9]+\))\s*$",   # 文末(計算式や箇条書きなども含む)
-        r"^\s*([0-9]+\s*\.\s*)+.{3,45}\s*$",    # 見出し
-        r"^\s*([0-9]+\s*\.\s*)*[0-9]+\s*.{3,45}\s*$",    # 見出し ↑よりも条件が緩いので注意
-        r"^([0-9]+\s*\.?)?\s*introduction$",    # 数字がない場合にも対応
-        r"^([0-9]+\s*\.?)?\s*related works?$",
-        r"^([0-9]+\s*\.?)?\s*overview$",
-        r"^([0-9]+\s*\.?)?\s*algorithm$",
-        r"^([0-9]+\s*\.?)?\s*experimental results?$",
-        r"^([0-9]+\s*\.?)?\s*conclusions?$",
-        r"^([0-9]+\s*\.?)?\s*acknowledgements?$",
-        r"^([0-9]+\s*\.?)?\s*references?$"
-    ]
-    # markdown方式で出力する時、この正規表現に当てはまる行を見出しとして扱う
-    __header_lines = [
-        r"^\s*([0-9]+\s*\.\s*)+.{3,45}\s*$",     # "1.2.3. aaaa" などにヒット
-        r"^\s*([0-9]+\s*\.\s*)*[0-9]+\s*.{3,45}\s*$",    # "1.2.3 aaaa" などにヒット
-        r"^([0-9]+\s*\.?)?\s*introduction$",    # 数字がない場合にも対応
-        r"^([0-9]+\s*\.?)?\s*related works?$",
-        r"^([0-9]+\s*\.?)?\s*overview$",
-        r"^([0-9]+\s*\.?)?\s*algorithm$",
-        r"^([0-9]+\s*\.?)?\s*experimental results?$",
-        r"^([0-9]+\s*\.?)?\s*conclusions?$",
-        r"^([0-9]+\s*\.?)?\s*acknowledgements?$",
-        r"^([0-9]+\s*\.?)?\s*references?$"
-    ]
-    # 見出しの大きさを決定するためのパターン
-    # header_linesの要素と対応する形で記述する
-    __header_depth_count = [
-        r"[0-9]+\s*\.\s*",  # 1.2.3. の"数字."の数が多いほど見出しが小さくなる(#の数が多くなる)
-        r"[0-9]+",
-        r"^$",
-        r"^$",
-        r"^$",
-        r"^$",
-        r"^$",
-        r"^$",
-        r"^$",
-        r"^$"
-    ]
-    # 見出しの日本語訳の先頭の数字などを消すためのパターン
-    __header_japanese_remove = [
-        r"[0-9]+\s*\.\s*",
-        r"\s*([0-9]+\s*\.\s*)*[0-9]+\s*",
-        r"[0-9]+\s*\.\s*",
-        r"[0-9]+\s*\.\s*",
-        r"[0-9]+\s*\.\s*",
-        r"[0-9]+\s*\.\s*",
-        r"[0-9]+\s*\.\s*",
-        r"[0-9]+\s*\.\s*",
-        r"[0-9]+\s*\.\s*",
-        r"[0-9]+\s*\.\s*"
-    ]
-    # 見出しの最大の大きさ 1が最大で6が最小
-    # header_linesの要素と対応する形で記述する
-    __header_max_size = [
-        2,
-        2,
-        2,
-        2,
-        2,
-        2,
-        2,
-        2,
-        2,
-        2
-    ]
-    # このリストに含まれる正規表現に当てはまる文字列があるとき、
-    # 改行対象でも改行しない
-    # 主にその略語の後に文が続きそうなものが対象
-    # 単なる略語は文末にも存在し得るので対象外
-    # 参考：[参考文献リストやデータベースに出てくる略語・用語一覧]
-    # (https://www.dl.itc.u-tokyo.ac.jp/gacos/supportbook/16.html)
-    __return_ignore_lines = [
-        r"\s+(e\.g|et al|etc|ex)\.$",
-        r"\s+(ff|figs?)\.$",
-        r"\s+(i\.e|illus)\.$",
-        r"\s+ll\.$",
-        r"\s+(Mr|Ms|Mrs)\.$",
-        r"\s+(pp|par|pt)\.$",
-        r"\s+sec\.$",
-        # "["が始まっているが"]"で閉じられていない(参考文献表記の途中など)
-        r"\[(?!.*\]).*$"
-    ]
-    # フォーマットの都合上どうしても入ってしまうノイズを置換する
-    # これはそのノイズ候補のリスト
-    # 一般的な表現の場合は諸刃の剣となるので注意
-    # また、リストの最初に近いほど優先して処理される
-    __replace_source = [
-        r"\s*[0-9]+\s*of\s*[0-9]+\s*",   # "1 of 9" などのページカウント
-        r"\s*Li et al\.\s*"
-    ]
-    # ノイズをどのような文字列に置換するか
-    __replace_target = [
-        " ",
-        " "
-    ]
-
-    # markdown用の置換リスト
-    __markdown_replace_source = [
-        "•"
-    ]
-    __markdown_replace_target = [
-        "-"
-    ]
 
     __add_japanese_return = True    # 日本語の文章において一文ごとに改行
     __output_type_markdown = True   # 出力をMarkdown式にする
@@ -347,11 +71,11 @@ class MyFileDropTarget(wx.FileDropTarget):
                     lines_extracting = True
                 for t in temp:
                     # 翻訳を開始する合図となる文字列を探す
-                    for sl in self.__start_lines:
+                    for sl in RegularExpressions.start_lines:
                         if re.search(sl, t, flags=re.IGNORECASE):
                             lines_extracting = True
                     # 翻訳を打ち切る合図となる文字列を探す
-                    for el in self.__end_lines:
+                    for el in RegularExpressions.end_lines:
                         if re.search(el, t, flags=re.IGNORECASE):
                             lines_extracting = False
                     # 翻訳をしないことになったなら、その文字列は飛ばす
@@ -359,7 +83,7 @@ class MyFileDropTarget(wx.FileDropTarget):
                         continue
 
                     # 翻訳を開始しても、無視する文字列なら飛ばす
-                    for il in self.__ignore_lines:
+                    for il in RegularExpressions.ignore_lines:
                         if re.search(il, t, flags=re.IGNORECASE):
                             skipLine = True
                             break
@@ -368,17 +92,17 @@ class MyFileDropTarget(wx.FileDropTarget):
                         continue
 
                     # 置換すべき文字列があったなら置換する
-                    for ri in range(len(self.__replace_source)):
+                    for ri in range(len(RegularExpressions.replace_source)):
                         t = re.sub(
-                            self.__replace_source[ri],
-                            self.__replace_target[ri],
+                            RegularExpressions.replace_source[ri],
+                            RegularExpressions.replace_target[ri],
                             t
                         )
                     if self.__output_type_markdown:
-                        for mri in range(len(self.__markdown_replace_source)):
+                        for mri in range(len(RegularExpressions.markdown_replace_source)):
                             t = re.sub(
-                                self.__markdown_replace_source[mri],
-                                self.__markdown_replace_target[mri],
+                                RegularExpressions.markdown_replace_source[mri],
+                                RegularExpressions.markdown_replace_target[mri],
                                 t
                             )
 
@@ -410,44 +134,33 @@ class MyFileDropTarget(wx.FileDropTarget):
             # 出力用のディレクトリを作成
             Path("output").mkdir(exist_ok=True)
             # 出力用ファイルのパス
-            outputFilePath = Path(
-                "output/" + Path(filenames[fi]).stem +
-                ("_extracted" if self.__debug_output_extracted_text else "") +
-                ".txt"
-            )
+            outputFilePath = Path("output/" + Path(filenames[fi]).stem + ("_extracted" if self.__debug_output_extracted_text else "") + ".txt")
 
             with open(outputFilePath, mode="w", encoding="utf-8") as f:
                 # デバッグ用の抽出テキスト出力モード
                 if self.__debug_output_extracted_text:
                     # 改行位置を出力
                     if self.__debug_output_mode == "return":
-                        print(
-                            "改行位置となり得る行を抽出して" +
-                            str(outputFilePath) + "に出力します。")
+                        print("改行位置となり得る行を抽出して" + str(outputFilePath) + "に出力します。")
                         for tl in textlines:
-                            for rl in self.__return_lines:
+                            for rl in RegularExpressions.return_lines:
                                 if re.search(rl, tl, flags=re.IGNORECASE):
                                     f.write(tl + "\n")
                                     break
                     # 改行を無視する位置を出力
                     elif self.__debug_output_mode == "return_ignore":
-                        print(
-                            "改行を無視する行を抽出して" +
-                            str(outputFilePath) + "に出力します。")
+                        print("改行を無視する行を抽出して" + str(outputFilePath) + "に出力します。")
                         for tl in textlines:
-                            for rl in self.__return_lines:
+                            for rl in RegularExpressions.return_lines:
                                 if re.search(rl, tl, flags=re.IGNORECASE):
-                                    for ril in self.__return_ignore_lines:
-                                        if re.search(ril, tl,
-                                                     flags=re.IGNORECASE):
+                                    for ril in RegularExpressions.return_ignore_lines:
+                                        if re.search(ril, tl, flags=re.IGNORECASE):
                                             f.write(tl + "\n")
                                             break
                                     break
                     # ベタ打ち
                     else:
-                        print(
-                            "抽出されたテキストをそのまま" +
-                            str(outputFilePath) + "に出力します。")
+                        print("抽出されたテキストをそのまま" + str(outputFilePath) + "に出力します。")
                         f.write("\n".join(textlines))
                 # 通常の翻訳モード
                 else:
@@ -457,15 +170,12 @@ class MyFileDropTarget(wx.FileDropTarget):
                     chart_buffer = ""   # 図表の説明の文字列
                     chartParagraph = False     # 図表の説明の段落を扱っているフラグ
                     tooLongParagraph = False    # 長過ぎる段落を扱っているフラグ
-                    tooLongMessage = "(一段落が5000文字以上となる可能性があるため、" + \
-                                     "自動での適切な翻訳ができません。" + \
-                                     "手動で分割して翻訳してください。)\n\n"
+                    tooLongMessage = "(一段落が5000文字以上となる可能性があるため、自動での適切な翻訳ができません。手動で分割して翻訳してください。)\n\n"
                     for i in range(len(textlines)):
                         # 図表の説明は本文を寸断している事が多いため、
                         # 図表を示す文字列が文頭に現れた場合は別口で処理する
                         # 例：Fig. 1. | Figure2: | Table 3. など
-                        if re.search(r"^(Fig\.|Figure|Table)\s*\d+(\.|:)",
-                                     textlines[i], flags=re.IGNORECASE):
+                        if re.search(r"^(Fig\.|Figure|Table)\s*\d+(\.|:)", textlines[i], flags=re.IGNORECASE):
                             chartParagraph = True
 
                         # 待ち時間を短くするために、DeepLの制限ギリギリまで文字数を詰める
@@ -480,8 +190,7 @@ class MyFileDropTarget(wx.FileDropTarget):
                             # 5000文字を超えそうになったら、それまでの段落を翻訳にかける
                             if parslen > 0:
                                 pp_log = (
-                                    "processing line " + str(i+1) +
-                                    "/" + str(len(textlines)) + "...")
+                                    "processing line " + str(i + 1) + "/" + str(len(textlines)) + "...")
                                 print(pp_log)
                                 self.__tl_and_write(paragraphs, f)
 
@@ -494,14 +203,14 @@ class MyFileDropTarget(wx.FileDropTarget):
                         # 文末っぽい表現がされていたり、
                         # その他return_linesに含まれる正規表現に当てはまればそこを文末と見なす
                         return_flag = False
-                        for rl in self.__return_lines:
+                        for rl in RegularExpressions.return_lines:
                             if re.search(rl, textlines[i], flags=re.IGNORECASE):
                                 return_flag = True
                                 break
 
                         # ただし、よくある略語だったりする場合は文末とは見なさない
                         if return_flag:
-                            for ril in self.__return_ignore_lines:
+                            for ril in RegularExpressions.return_ignore_lines:
                                 if re.search(ril, textlines[i]):
                                     return_flag = False
                                     break
@@ -518,8 +227,7 @@ class MyFileDropTarget(wx.FileDropTarget):
                                 else:
                                     temp = par_buffer
                                     par_buffer = ""
-                                f.write(temp + textlines[i] +
-                                        "\n\n" + tooLongMessage)
+                                f.write(temp + textlines[i] + "\n\n" + tooLongMessage)
                             else:
                                 # 長すぎない場合は翻訳待ちの段落として追加
                                 if chartParagraph:
@@ -579,15 +287,14 @@ class MyFileDropTarget(wx.FileDropTarget):
             # Markdown方式で出力する場合は見出しに#を加える
             header_line_hit = False
             if self.__output_type_markdown:
-                for j in range(len(self.__header_lines)):
-                    if re.search(self.__header_lines[j],
-                                 paragraphs[i], flags=re.IGNORECASE):
+                for j in range(len(RegularExpressions.header_lines)):
+                    if re.search(RegularExpressions.header_lines[j], paragraphs[i], flags=re.IGNORECASE):
                         header_line_hit = True
                         # 見出しの深さを算出 & #を出力
                         depth = max(1, len(re.findall(
-                            self.__header_depth_count[j], paragraphs[i])))
-                        f.write("#" * min(self.__header_max_size[j] +
-                                depth - 1, 6) + " ")
+                            RegularExpressions.header_depth_count[j],
+                            paragraphs[i])))
+                        f.write("#" * min(RegularExpressions.header_max_size[j] + depth - 1, 6) + " ")
 
                         # 原文の出力を行う場合
                         if self.__output_source:
@@ -595,13 +302,10 @@ class MyFileDropTarget(wx.FileDropTarget):
                             f.write(paragraphs[i] + "\n")
                             # 日本語の見出し部分の先頭(1.2.など)を削除
                             tl_processed[i] = re.sub(
-                                self.__header_japanese_remove[j],
-                                "",
-                                tl_processed[i])
+                                RegularExpressions.header_japanese_remove[j],
+                                "", tl_processed[i])
 
-                        f.write(
-                            tl_processed[i] +
-                            ("\n" if tl_processed[i][-1] == "\n" else "\n\n"))
+                        f.write(tl_processed[i] + ("\n" if tl_processed[i][-1] == "\n" else "\n\n"))
                         break
                 if not header_line_hit:
                     if self.__output_source and self.__source_as_comment:
@@ -612,14 +316,19 @@ class MyFileDropTarget(wx.FileDropTarget):
                 # 見出しでない場合の出力
                 if self.__output_source:
                     f.write(paragraphs[i] + "\n\n")
-                f.write(tl_processed[i] +
-                        ("\n" if tl_processed[i][-1] == "\n" else "\n\n"))
+                f.write(tl_processed[i] + ("\n" if tl_processed[i][-1] == "\n" else "\n\n"))
 
 
 class WindowFrame(wx.Frame):
     def __init__(self):
-        wx.Frame.__init__(self, None,
-                          title="DeepL PDF Translator", size=(500, 250))
+        wx.Frame.__init__(self, None, title="DeepL PDF Translator", size=(500, 250))
+
+        # メニューバーを設定
+        menu_bar = wx.MenuBar()
+        menu_bar.Append(WindowFrame.FileMenu(), "ファイル")
+        menu_bar.Append(WindowFrame.EditMenu(), "編集")
+        self.SetMenuBar(menu_bar)
+
         p = wx.Panel(self)
         sizer = wx.BoxSizer(wx.VERTICAL)
 
@@ -628,12 +337,14 @@ class WindowFrame(wx.Frame):
         sizer.Add(label, 0, wx.ALL, 5)
         sizer.Add(self.text, 0, wx.ALL, 5)
 
+        # ブラウザ選択のコンボボックス
         self.browser_combo = WindowFrame.BrowserCombo(p)
         self.browser_combo.SetStringSelection(Browser.CHROME.value)
         sizer.Add(
             self.browser_combo,
             flag=wx.ALIGN_LEFT | wx.TOP | wx.LEFT | wx.BOTTOM, border=10)
 
+        # 各種チェックボックス
         self.chkbx_japanese_return = wx.CheckBox(
             p, -1, "翻訳文を一文ごとに改行する")
         self.chkbx_japanese_return.SetToolTip(
@@ -694,6 +405,27 @@ class WindowFrame(wx.Frame):
                 parent, wx.ID_ANY, "ブラウザを選択",
                 choices=browser_combo_elements, style=wx.CB_READONLY
             )
+
+    class FileMenu(wx.Menu):
+        def __init__(self):
+            super().__init__()
+            self.Append(10000, "翻訳対象のPDFファイルを開く")
+
+    class EditMenu(wx.Menu):
+        def __init__(self):
+            super().__init__()
+            self.Append(20000, "翻訳開始条件の正規表現を編集")
+            self.Append(20100, "翻訳終了条件の正規表現を編集")
+            self.start_ignore = self.AppendCheckItem(
+                20001, "翻訳開始条件を無視して最初から翻訳する")
+            self.end_ignore = self.AppendCheckItem(
+                20101, "翻訳終了条件を無視して最後まで翻訳する")
+            self.AppendSeparator()
+            self.Append(20200, "無視条件の正規表現を編集")
+            self.Append(20300, "段落終了条件の正規表現を編集")
+            self.Append(20400, "段落終了無視条件の正規表現を編集")
+            self.Append(20500, "置換条件の正規表現を編集")
+            self.Append(20600, "見出し条件の正規表現を編集")
 
 
 if __name__ == '__main__':
