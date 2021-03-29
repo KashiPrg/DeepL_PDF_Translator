@@ -37,10 +37,8 @@ class MyFileDropTarget(wx.FileDropTarget):
         # DeepLのページを開く
         self.__deepLManager.openDeepLPage()
 
-        # ファイルパスをテキストフィールドに表示
+        # ファイルごとに処理
         for fi in range(len(filenames)):
-            self.window.text.SetValue(filenames[fi])
-
             addedMessage = ""
             if fi == len(filenames) - 1:
                 addedMessage = "\n翻訳を終了します。"
@@ -344,58 +342,35 @@ class WindowFrame(wx.Frame):
         p = wx.Panel(self)
         sizer = wx.BoxSizer(wx.VERTICAL)
 
-        label = wx.StaticText(p, -1, "File name:")
-        self.text = wx.TextCtrl(p, -1, "", size=(400, -1))
-        sizer.Add(label, 0, wx.ALL, 5)
-        sizer.Add(self.text, 0, wx.ALL, 5)
+        # ブラウザ選択のラベル
+        browser_label = wx.StaticText(p, -1, "使用ウェブブラウザ")
+        sizer.Add(browser_label, flag=wx.ALIGN_LEFT | wx.TOP | wx.LEFT, border=10)
 
         # ブラウザ選択のコンボボックス
         self.browser_combo = WindowFrame.BrowserCombo(p)
         self.browser_combo.SetStringSelection(Browser.CHROME.value)
-        sizer.Add(
-            self.browser_combo,
-            flag=wx.ALIGN_LEFT | wx.TOP | wx.LEFT | wx.BOTTOM, border=10)
+        sizer.Add(self.browser_combo, flag=wx.ALIGN_LEFT | wx.LEFT | wx.BOTTOM, border=10)
 
         # 各種チェックボックス
-        self.chkbx_japanese_return = wx.CheckBox(
-            p, -1, "翻訳文を一文ごとに改行する")
-        self.chkbx_japanese_return.SetToolTip(
-            "出力された日本語の翻訳文を、\"。\"の位置で改行します"
-        )
+        self.chkbx_japanese_return = wx.CheckBox(p, -1, "翻訳文を一文ごとに改行する")
+        self.chkbx_japanese_return.SetToolTip("出力された日本語の翻訳文を、\"。\"の位置で改行します")
         self.chkbx_japanese_return.SetValue(True)
-        sizer.Add(
-            self.chkbx_japanese_return,
-            flag=wx.ALIGN_LEFT | wx.TOP | wx.LEFT, border=10)
+        sizer.Add(self.chkbx_japanese_return, flag=wx.ALIGN_LEFT | wx.TOP | wx.LEFT, border=10)
 
-        self.chkbx_return_markdown = wx.CheckBox(
-            p, -1, "出力をMarkdown式にする")
-        self.chkbx_return_markdown.SetToolTip(
-            "見出しや改行をMarkdown式にします"
-        )
+        self.chkbx_return_markdown = wx.CheckBox(p, -1, "出力をMarkdown式にする")
+        self.chkbx_return_markdown.SetToolTip("見出しや改行をMarkdown式にします")
         self.chkbx_return_markdown.SetValue(True)
-        sizer.Add(
-            self.chkbx_return_markdown,
-            flag=wx.ALIGN_LEFT | wx.LEFT, border=10)
+        sizer.Add(self.chkbx_return_markdown, flag=wx.ALIGN_LEFT | wx.LEFT, border=10)
 
-        self.chkbx_output_source = wx.CheckBox(
-            p, -1, "原文を出力する")
-        self.chkbx_output_source.SetToolTip(
-            "原文と翻訳文をセットで出力します。"
-        )
+        self.chkbx_output_source = wx.CheckBox(p, -1, "原文を出力する")
+        self.chkbx_output_source.SetToolTip("原文と翻訳文をセットで出力します。")
         self.chkbx_output_source.SetValue(True)
-        sizer.Add(
-            self.chkbx_output_source,
-            flag=wx.ALIGN_LEFT | wx.LEFT, border=10)
+        sizer.Add(self.chkbx_output_source, flag=wx.ALIGN_LEFT | wx.LEFT, border=10)
 
-        self.chkbx_source_as_comment = wx.CheckBox(
-            p, -1, "原文をコメントとして出力する")
-        self.chkbx_source_as_comment.SetToolTip(
-            "Markdown形式において、原文をコメントとして出力します。"
-        )
+        self.chkbx_source_as_comment = wx.CheckBox(p, -1, "原文をコメントとして出力する")
+        self.chkbx_source_as_comment.SetToolTip("Markdown形式において、原文をコメントとして出力します。")
         self.chkbx_source_as_comment.SetValue(True)
-        sizer.Add(
-            self.chkbx_source_as_comment,
-            flag=wx.ALIGN_LEFT | wx.LEFT, border=10)
+        sizer.Add(self.chkbx_source_as_comment, flag=wx.ALIGN_LEFT | wx.LEFT, border=10)
 
         p.SetSizer(sizer)
 
@@ -404,9 +379,22 @@ class WindowFrame(wx.Frame):
         self.Show()
 
     def GetBrowserSelection(self):
+        """
+        ブラウザ選択のコンボボックスで何を選択しているかを取得する
+
+        Returns:
+            string: 選択しているウェブブラウザの名前
+        """
         return self.browser_combo.GetStringSelection()
 
+    # ブラウザ選択のコンボボックス
     class BrowserCombo(wx.ComboBox):
+        """
+        ブラウザ選択のコンボボックス
+
+        Args:
+            parent: 親要素
+        """
         def __init__(self, parent):
             browser_combo_elements = (
                 Browser.CHROME.value,
@@ -419,19 +407,23 @@ class WindowFrame(wx.Frame):
             )
 
     class FileMenu(wx.Menu):
+        """
+        メニューバーの[ファイル]
+        """
         def __init__(self):
             super().__init__()
             self.Append(10000, "翻訳対象のPDFファイルを開く")
 
     class EditMenu(wx.Menu):
+        """
+        メニューバーの[編集]
+        """
         def __init__(self):
             super().__init__()
             self.Append(20000, "翻訳開始条件の正規表現を編集")
             self.Append(20100, "翻訳終了条件の正規表現を編集")
-            self.start_ignore = self.AppendCheckItem(
-                20001, "翻訳開始条件を無視して最初から翻訳する")
-            self.end_ignore = self.AppendCheckItem(
-                20101, "翻訳終了条件を無視して最後まで翻訳する")
+            self.start_ignore = self.AppendCheckItem(20001, "翻訳開始条件を無視して最初から翻訳する")
+            self.end_ignore = self.AppendCheckItem(20101, "翻訳終了条件を無視して最後まで翻訳する")
             self.AppendSeparator()
             self.Append(20200, "無視条件の正規表現を編集")
             self.Append(20300, "段落終了条件の正規表現を編集")
