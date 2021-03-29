@@ -164,13 +164,15 @@ class MyFileDropTarget(wx.FileDropTarget):
                         f.write("\n".join(textlines))
                 # 通常の翻訳モード
                 else:
+                    tl_units = []
+                    too_long_flags = []
                     paragraphs = []     # 段落ごとに分けて格納
                     parslen = 0         # paragraphsの総文字数
                     par_buffer = ""     # 今扱っている段落の文字列
                     chart_buffer = ""   # 図表の説明の文字列
                     chartParagraph = False     # 図表の説明の段落を扱っているフラグ
                     tooLongParagraph = False    # 長過ぎる段落を扱っているフラグ
-                    tooLongMessage = "(一段落が5000文字以上となる可能性があるため、自動での適切な翻訳ができません。手動で分割して翻訳してください。)\n\n"
+                    # tooLongMessage = "(一段落が5000文字以上となる可能性があるため、自動での適切な翻訳ができません。手動で分割して翻訳してください。)\n\n"
                     for i in range(len(textlines)):
                         # 図表の説明は本文を寸断している事が多いため、
                         # 図表を示す文字列が文頭に現れた場合は別口で処理する
@@ -189,10 +191,10 @@ class MyFileDropTarget(wx.FileDropTarget):
                         if not tooLongParagraph and currentLen > 4800:
                             # 5000文字を超えそうになったら、それまでの段落を翻訳にかける
                             if parslen > 0:
-                                pp_log = (
-                                    "processing line " + str(i + 1) + "/" + str(len(textlines)) + "...")
-                                print(pp_log)
-                                self.__tl_and_write(paragraphs, f)
+                                # print("processing line " + str(i + 1) + "/" + str(len(textlines)) + "...")
+                                tl_units.append(paragraphs)
+                                too_long_flags.append(False)
+                                # self.__tl_and_write(paragraphs, f)
 
                                 parslen = 0
                                 paragraphs = []
@@ -217,32 +219,30 @@ class MyFileDropTarget(wx.FileDropTarget):
 
                         end_of_file = i == len(textlines) - 1   # ファイルの終端フラグ
                         if return_flag or end_of_file:
+                            temp = ""
+                            if chartParagraph:
+                                temp = chart_buffer
+                                chart_buffer = ""
+                            else:
+                                temp = par_buffer
+                                par_buffer = ""
                             # 5000字を超える一段落は、自動での翻訳を行わない
                             # ファイルの終端でもそれは変わらない
-                            temp = ""
                             if tooLongParagraph:
-                                if chartParagraph:
-                                    temp = chart_buffer
-                                    chart_buffer = ""
-                                else:
-                                    temp = par_buffer
-                                    par_buffer = ""
-                                f.write(temp + textlines[i] + "\n\n" + tooLongMessage)
+                                tl_units.append([temp + textlines[i]])
+                                too_long_flags.append(True)
+                                # f.write(temp + textlines[i] + "\n\n" + tooLongMessage)
                             else:
                                 # 長すぎない場合は翻訳待ちの段落として追加
-                                if chartParagraph:
-                                    temp = chart_buffer
-                                    chart_buffer = ""
-                                else:
-                                    temp = par_buffer
-                                    par_buffer = ""
                                 temp += textlines[i]
                                 parslen += len(temp)
                                 paragraphs.append(temp)
                                 # ファイルの終端の場合は最後に翻訳と書き込みを行う
                                 if end_of_file:
-                                    print("Processing last line...")
-                                    self.__tl_and_write(paragraphs, f)
+                                    # print("Processing last line...")
+                                    tl_units.append(paragraphs)
+                                    too_long_flags.append(False)
+                                    # self.__tl_and_write(paragraphs, f)
                             chartParagraph = False
                         else:
                             # 文末でない場合は末尾に適切な処理を施してバッファに追加
@@ -258,6 +258,18 @@ class MyFileDropTarget(wx.FileDropTarget):
                                 chart_buffer += temp
                             else:
                                 par_buffer += temp
+
+                    # 翻訳作業
+                    part_len = len(tl_units)
+                    for i in range(part_len):
+                        if too_long_flags[i]:
+                            # 長過ぎる段落(5000字以上)の場合は自動翻訳できない旨を併記して原文を出力
+                            # この場合は設定にかかわらず、原文をコメントアウトせずに出力する
+                            f.write(tl_units[i][0] + "\n\n(一段落が5000文字以上となる可能性があるため、自動での適切な翻訳ができません。手動で分割して翻訳してください。)\n\n")
+                        else:
+                            # それ以外の場合は翻訳を実行
+                            print("全体の " + str(i + 1) + "/" + str(part_len + 1) + " を翻訳しています……")
+                            self.__tl_and_write(tl_units[i], f)
 
         self.__deepLManager.closeWindow()
 
