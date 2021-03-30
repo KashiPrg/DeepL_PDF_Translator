@@ -1,7 +1,21 @@
 import wx
 
 from deeplmanager import Browser, DeepLManager
+from enum import Enum
 from pdftranslator import PDFTranslator
+
+
+class MenuBar_Menu(Enum):
+    OPEN_PDF_FILE = 101
+    EDIT_START_RE = 201
+    EDIT_END_RE = 202
+    CHECKBOX_IGNORE_START_CONDITION = 20101
+    CHECKBOX_IGNORE_END_CONDITION = 20201
+    EDIT_IGNORE_RE = 203
+    EDIT_RETURN_RE = 204
+    EDIT_RETURN_IGNORE_RE = 205
+    EDIT_REPLACE_RE = 206
+    EDIT_HEADER_RE = 207
 
 
 class MyFileDropTarget(wx.FileDropTarget):
@@ -54,6 +68,7 @@ class WindowFrame(wx.Frame):
         menu_bar = wx.MenuBar()
         menu_bar.Append(WindowFrame.FileMenu(), "ファイル")
         menu_bar.Append(WindowFrame.EditMenu(), "編集")
+        self.Bind(wx.EVT_MENU, self.SelectedMenu)    # メニュー選択時のイベント
         self.SetMenuBar(menu_bar)
 
         p = wx.Panel(self)
@@ -123,13 +138,52 @@ class WindowFrame(wx.Frame):
                 choices=browser_combo_elements, style=wx.CB_READONLY
             )
 
+    def SelectedMenu(self, event):
+        """
+        選ばれたメニューに応じて操作を行う
+        """
+        event_id = event.GetId()
+        if event_id == MenuBar_Menu.OPEN_PDF_FILE.value:
+            self.OpenAndTranslatePDF()
+
     class FileMenu(wx.Menu):
         """
         メニューバーの[ファイル]
         """
         def __init__(self):
             super().__init__()
-            self.Append(10000, "翻訳対象のPDFファイルを開く")
+            self.Append(MenuBar_Menu.OPEN_PDF_FILE.value, "翻訳対象のPDFファイルを開く")
+
+    def OpenAndTranslatePDF(self):
+        # ファイル選択ダイアログを作成
+        dialog = wx.FileDialog(
+            None,
+            message="翻訳対象のPDFファイルを選択してください",
+            wildcard="PDF file(*.pdf) | *.pdf",
+            style=wx.FD_OPEN)
+
+        # ファイルを選択させる
+        dialog.ShowModal()
+
+        p_tl = PDFTranslator(
+            DeepLManager(self.GetBrowserSelection()),
+            self.chkbx_japanese_return.Value,
+            self.chkbx_return_markdown.Value,
+            self.chkbx_output_source.Value,
+            self.chkbx_source_as_comment,
+            False,
+            False,
+            False,
+            False,
+            False,
+            False,
+            False,
+            False,
+            False,
+            False
+        )
+
+        return p_tl.PDFTranslate(dialog.GetPath())
 
     class EditMenu(wx.Menu):
         """
@@ -137,16 +191,16 @@ class WindowFrame(wx.Frame):
         """
         def __init__(self):
             super().__init__()
-            self.Append(20000, "翻訳開始条件の正規表現を編集")
-            self.Append(20100, "翻訳終了条件の正規表現を編集")
-            self.start_ignore = self.AppendCheckItem(20001, "翻訳開始条件を無視して最初から翻訳する")
-            self.end_ignore = self.AppendCheckItem(20101, "翻訳終了条件を無視して最後まで翻訳する")
+            self.Append(MenuBar_Menu.EDIT_START_RE.value, "翻訳開始条件の正規表現を編集")
+            self.Append(MenuBar_Menu.EDIT_END_RE.value, "翻訳終了条件の正規表現を編集")
+            self.start_ignore = self.AppendCheckItem(MenuBar_Menu.CHECKBOX_IGNORE_START_CONDITION.value, "翻訳開始条件を無視して最初から翻訳する")
+            self.end_ignore = self.AppendCheckItem(MenuBar_Menu.CHECKBOX_IGNORE_END_CONDITION.value, "翻訳終了条件を無視して最後まで翻訳する")
             self.AppendSeparator()
-            self.Append(20200, "無視条件の正規表現を編集")
-            self.Append(20300, "段落終了条件の正規表現を編集")
-            self.Append(20400, "段落終了無視条件の正規表現を編集")
-            self.Append(20500, "置換条件の正規表現を編集")
-            self.Append(20600, "見出し条件の正規表現を編集")
+            self.Append(MenuBar_Menu.EDIT_IGNORE_RE.value, "無視条件の正規表現を編集")
+            self.Append(MenuBar_Menu.EDIT_RETURN_RE.value, "段落終了条件の正規表現を編集")
+            self.Append(MenuBar_Menu.EDIT_RETURN_IGNORE_RE.value, "段落終了無視条件の正規表現を編集")
+            self.Append(MenuBar_Menu.EDIT_REPLACE_RE.value, "置換条件の正規表現を編集")
+            self.Append(MenuBar_Menu.EDIT_HEADER_RE.value, "見出し条件の正規表現を編集")
 
 
 if __name__ == '__main__':
