@@ -10,6 +10,65 @@ from sys import stderr
 from time import sleep
 
 
+class Target_Lang(Enum):
+    BULGARIAN = "ブルガリア語"
+    CHINESE_SIMPLIFIED = "中国語(簡体字)"
+    CZECH = "チェコ語"
+    DANISH = "デンマーク語"
+    DUTCH = "オランダ語"
+    ENGLISH_GB = "英語(イギリス)"
+    ENGLISH_US = "英語(アメリカ)"
+    ESTONIAN = "エストニア語"
+    FINNISH = "フィンランド語"
+    FRENCH = "フランス語"
+    GERMAN = "ドイツ語"
+    GREEK = "ギリシャ語"
+    HUNGARIAN = "ハンガリー語"
+    ITALIAN = "イタリア語"
+    JAPANESE = "日本語"
+    LATVIAN = "ラトビア語"
+    LITHUANIAN = "リトアニア語"
+    POLISH = "ポーランド語"
+    PORTUGUESE = "ポルトガル語"
+    PORTUGUESE_BR = "ポルトガル語(ブラジル)"
+    ROMANIAN = "ルーマニア語"
+    RUSSIAN = "ロシア語"
+    SLOVAK = "スロバキア語"
+    SLOVENIAN = "スロベニア語"
+    SPANISH = "スペイン語"
+    SWEDISH = "スウェーデン語"
+
+
+language_dict = {
+    Target_Lang.BULGARIAN.value: "bg-BG",
+    Target_Lang.CHINESE_SIMPLIFIED.value: "zh-ZH",
+    Target_Lang.CZECH.value: "cs-CS",
+    Target_Lang.DANISH.value: "da-DA",
+    Target_Lang.DUTCH.value: "nl-NL",
+    Target_Lang.ENGLISH_GB.value: "en-GB",
+    Target_Lang.ENGLISH_US.value: "en-US",
+    Target_Lang.ESTONIAN.value: "et-ET",
+    Target_Lang.FINNISH.value: "fi-FI",
+    Target_Lang.FRENCH.value: "fr-FR",
+    Target_Lang.GERMAN.value: "de-DE",
+    Target_Lang.GREEK.value: "el-EL",
+    Target_Lang.HUNGARIAN.value: "hu-HU",
+    Target_Lang.ITALIAN.value: "it-IT",
+    Target_Lang.JAPANESE.value: "ja-JA",
+    Target_Lang.LATVIAN.value: "lv-LV",
+    Target_Lang.LITHUANIAN.value: "lt-LT",
+    Target_Lang.POLISH.value: "pl-PL",
+    Target_Lang.PORTUGUESE.value: "pt-PT",
+    Target_Lang.PORTUGUESE_BR.value: "pt-BR",
+    Target_Lang.ROMANIAN.value: "ro-RO",
+    Target_Lang.RUSSIAN.value: "ru-RU",
+    Target_Lang.SLOVAK.value: "sk-SK",
+    Target_Lang.SLOVENIAN.value: "sl-SL",
+    Target_Lang.SPANISH.value: "es-ES",
+    Target_Lang.SWEDISH.value: "sv-SV"
+}
+
+
 class Browser(Enum):
     CHROME = "Chrome"
     EDGE = "Edge"
@@ -84,15 +143,18 @@ class DeepLManager:
         self.__webDriver.get("https://www.deepl.com/translator")
 
     # 渡された文を翻訳にかけ、訳文を返す
-    def translate(self, text, first_wait_secs=10, wait_secs_max=60):
+    def translate(self, text, lang="ja-JA", first_wait_secs=10, wait_secs_max=60):
         # DeepLのページが開かれていなければ開く
         self.openDeepLPage()
 
+        # 訳文の言語を選択するタブを開く
+        self.__webDriver.find_element_by_xpath("//button[@dl-test='translator-target-lang-btn']").click()
+        # 訳文の言語のボタンを押す
+        self.__webDriver.find_element_by_xpath("//button[@dl-test='translator-lang-option-" + lang + "']").click()
+
         # 原文の入力欄を取得
         source_textarea = self.__webDriver.find_element_by_css_selector(
-            "textarea.lmt__textarea.lmt__source_textarea."
-            "lmt__textarea_base_style"
-        )
+            "textarea.lmt__textarea.lmt__source_textarea.lmt__textarea_base_style")
         # Ctrl+Aで全選択し、前の文を消しつつ原文を入力
         source_textarea.send_keys(Keys.CONTROL, Keys.COMMAND, "a")
         source_textarea.send_keys(text)
@@ -108,13 +170,11 @@ class DeepLManager:
                 # 通常時はdiv.lmt_progress_popupだが、ポップアップが可視化するときは
                 # lmt_progress_popup--visible(_2)が追加される
                 _ = self.__webDriver.find_element_by_css_selector(
-                    "div.lmt__progress_popup.lmt__progress_popup--visible."
-                    "lmt__progress_popup--visible_2")
+                    "div.lmt__progress_popup.lmt__progress_popup--visible.lmt__progress_popup--visible_2")
             except sce.NoSuchElementException:
                 # ポップアップが無く、かつ[...]が無ければ翻訳完了として抜け出す
                 translated = self.__webDriver.find_element_by_css_selector(
-                    "textarea.lmt__textarea.lmt__target_textarea."
-                    "lmt__textarea_base_style"
+                    "textarea.lmt__textarea.lmt__target_textarea.lmt__textarea_base_style"
                 ).get_property("value")
                 if not re.search(r"\[\.\.\.\]", translated):
                     break
@@ -131,8 +191,7 @@ class DeepLManager:
 
         # 訳文の出力欄を取得し、訳文を取得
         translated = self.__webDriver.find_element_by_css_selector(
-            "textarea.lmt__textarea.lmt__target_textarea."
-            "lmt__textarea_base_style"
+            "textarea.lmt__textarea.lmt__target_textarea.lmt__textarea_base_style"
         ).get_property("value")
 
         return translated

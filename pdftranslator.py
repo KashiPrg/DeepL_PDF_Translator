@@ -11,6 +11,7 @@ class PDFTranslator:
     def __init__(
         self,
         deepLManager,
+        lang,
         add_target_return,
         output_type_markdown,
         output_source,
@@ -28,6 +29,8 @@ class PDFTranslator:
     ):
         """
         Args:
+            deepLManager (WebDriver): DeepLを操作するためのWebDriver
+            lang (string): 翻訳先の言語
             add_target_return (bool): 翻訳文を一文ごとに改行するか
             output_type_markdown (bool): 出力をMarkdown式にするか
             output_source (bool): 原文を出力するか
@@ -44,6 +47,7 @@ class PDFTranslator:
             output_header_lines (bool, optional): 見出し条件 〃
         """
         self.__deepLManager = deepLManager
+        self.__lang = lang
         self.__add_target_return = add_target_return
         self.__output_type_markdown = output_type_markdown
         self.__output_source = output_source
@@ -391,7 +395,7 @@ class PDFTranslator:
 
         with open(outputFilePath, mode="w", encoding="utf-8") as f:
             for paragraphs in tl_units:
-                translated = self.__deepLManager.translate("\n".join(paragraphs)).splitlines()
+                translated = self.__deepLManager.translate("\n".join(paragraphs), self.__lang).splitlines()
 
                 tl_processed = []
                 for tl in translated:

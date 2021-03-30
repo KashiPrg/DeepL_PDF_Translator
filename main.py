@@ -1,6 +1,6 @@
 import wx
 
-from deeplmanager import Browser, DeepLManager
+from deeplmanager import Target_Lang, language_dict, Browser, DeepLManager
 from enum import Enum
 from pdftranslator import PDFTranslator
 
@@ -36,6 +36,7 @@ class MyFileDropTarget(wx.FileDropTarget):
 
         p_tl = PDFTranslator(
             deepLManager,
+            language_dict[self.window.GetTargetLangSelection()],
             add_japanese_return,
             output_type_markdown,
             output_source,
@@ -74,9 +75,18 @@ class WindowFrame(wx.Frame):
         p = wx.Panel(self)
         sizer = wx.BoxSizer(wx.VERTICAL)
 
+        # 言語選択のラベル
+        target_lang_label = wx.StaticText(p, -1, "翻訳先の言語")
+        sizer.Add(target_lang_label, flag=wx.ALIGN_LEFT | wx.TOP | wx.LEFT, border=10)
+
+        # 言語選択のコンボボックス
+        self.target_lang_combo = WindowFrame.TargetLangCombo(p)
+        self.target_lang_combo.SetStringSelection(Target_Lang.JAPANESE.value)
+        sizer.Add(self.target_lang_combo, flag=wx.ALIGN_LEFT | wx.LEFT, border=10)
+
         # ブラウザ選択のラベル
         browser_label = wx.StaticText(p, -1, "使用ウェブブラウザ")
-        sizer.Add(browser_label, flag=wx.ALIGN_LEFT | wx.TOP | wx.LEFT, border=10)
+        sizer.Add(browser_label, flag=wx.ALIGN_LEFT | wx.LEFT, border=10)
 
         # ブラウザ選択のコンボボックス
         self.browser_combo = WindowFrame.BrowserCombo(p)
@@ -110,6 +120,53 @@ class WindowFrame(wx.Frame):
         self.SetDropTarget(dt)
         self.Show()
 
+    def GetTargetLangSelection(self):
+        """
+        言語選択のコンボボックスで何を選択しているかを取得する
+
+        Returns:
+            string: 選択している言語の名前
+        """
+        return self.target_lang_combo.GetStringSelection()
+
+    class TargetLangCombo(wx.ComboBox):
+        """
+        言語選択のコンボボックス
+
+        Args:
+            parent: 親要素
+        """
+        def __init__(self, parent):
+            target_lang_combo_elements = [
+                Target_Lang.BULGARIAN.value,
+                Target_Lang.CHINESE_SIMPLIFIED.value,
+                Target_Lang.CZECH.value,
+                Target_Lang.DANISH.value,
+                Target_Lang.DUTCH.value,
+                Target_Lang.ENGLISH_GB.value,
+                Target_Lang.ENGLISH_US.value,
+                Target_Lang.ESTONIAN.value,
+                Target_Lang.FINNISH.value,
+                Target_Lang.FRENCH.value,
+                Target_Lang.GERMAN.value,
+                Target_Lang.GREEK.value,
+                Target_Lang.HUNGARIAN.value,
+                Target_Lang.ITALIAN.value,
+                Target_Lang.JAPANESE.value,
+                Target_Lang.LATVIAN.value,
+                Target_Lang.LITHUANIAN.value,
+                Target_Lang.POLISH.value,
+                Target_Lang.PORTUGUESE.value,
+                Target_Lang.PORTUGUESE_BR.value,
+                Target_Lang.ROMANIAN.value,
+                Target_Lang.RUSSIAN.value,
+                Target_Lang.SLOVAK.value,
+                Target_Lang.SLOVENIAN.value,
+                Target_Lang.SPANISH.value,
+                Target_Lang.SWEDISH.value
+            ]
+            super().__init__(parent, wx.ID_ANY, "言語を選択", choices=sorted(target_lang_combo_elements), style=wx.CB_READONLY)
+
     def GetBrowserSelection(self):
         """
         ブラウザ選択のコンボボックスで何を選択しているかを取得する
@@ -133,10 +190,7 @@ class WindowFrame(wx.Frame):
                 Browser.EDGE.value,
                 Browser.FIREFOX.value
             )
-            super().__init__(
-                parent, wx.ID_ANY, "ブラウザを選択",
-                choices=browser_combo_elements, style=wx.CB_READONLY
-            )
+            super().__init__(parent, wx.ID_ANY, "ブラウザを選択", choices=browser_combo_elements, style=wx.CB_READONLY)
 
     def SelectedMenu(self, event):
         """
@@ -167,6 +221,7 @@ class WindowFrame(wx.Frame):
 
         p_tl = PDFTranslator(
             DeepLManager(self.GetBrowserSelection()),
+            language_dict[self.GetTargetLangSelection()],
             self.chkbx_japanese_return.Value,
             self.chkbx_return_markdown.Value,
             self.chkbx_output_source.Value,
