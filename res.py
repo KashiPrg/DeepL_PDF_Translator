@@ -3,6 +3,7 @@ class RegularExpressions:
     start_lines = [r"[0-9]+\s*\.?\s*introduction", r"introduction$"]
     # このリストに含まれる正規表現に当てはまる文字列で翻訳を打ち切る
     end_lines = [r"^references?$"]
+
     # このリストに含まれる正規表現に当てはまる文字列は無視する
     ignore_lines = [
         r"^\s*ACM Trans",
@@ -16,6 +17,29 @@ class RegularExpressions:
         r"^\s*Li et al\.\s*$",
         r"^\s*Exertion-Aware Path Generation\s*$"
     ]
+
+    # フォーマットの都合上どうしても入ってしまうノイズを置換する
+    # これはそのノイズ候補のリスト
+    # 一般的な表現の場合は諸刃の剣となるので注意
+    # また、リストの最初に近いほど優先して処理される
+    replace_source = [
+        r"\s*[0-9]+\s*of\s*[0-9]+\s*",   # "1 of 9" などのページカウント
+        r"\s*Li et al\.\s*"
+    ]
+    # ノイズをどのような文字列に置換するか
+    replace_target = [
+        " ",
+        " "
+    ]
+
+    # markdown用の置換リスト
+    markdown_replace_source = [
+        "•"
+    ]
+    markdown_replace_target = [
+        "-"
+    ]
+
     # このリストに含まれる正規表現に当てはまる文字列がある行で改行する
     return_lines = [
         r"(\.|:|;|\([0-9]+\))\s*$",   # 文末(計算式や箇条書きなども含む)
@@ -30,6 +54,24 @@ class RegularExpressions:
         r"^([0-9]+\s*\.?)?\s*acknowledgements?$",
         r"^([0-9]+\s*\.?)?\s*references?$"
     ]
+    # このリストに含まれる正規表現に当てはまる文字列があるとき、
+    # 改行対象でも改行しない
+    # 主にその略語の後に文が続きそうなものが対象
+    # 単なる略語は文末にも存在し得るので対象外
+    # 参考：[参考文献リストやデータベースに出てくる略語・用語一覧]
+    # (https://www.dl.itc.u-tokyo.ac.jp/gacos/supportbook/16.html)
+    return_ignore_lines = [
+        r"\s+(e\.g|et al|etc|ex)\.$",
+        r"\s+(ff|figs?)\.$",
+        r"\s+(i\.e|illus)\.$",
+        r"\s+ll\.$",
+        r"\s+(Mr|Ms|Mrs)\.$",
+        r"\s+(pp|par|pt)\.$",
+        r"\s+sec\.$",
+        # "["が始まっているが"]"で閉じられていない(参考文献表記の途中など)
+        r"\[(?!.*\]).*$"
+    ]
+
     # markdown方式で出力する時、この正規表現に当てはまる行を見出しとして扱う
     header_lines = [
         r"^\s*([0-9]+\s*\.\s*)+.{3,45}\s*$",     # "1.2.3. aaaa" などにヒット
@@ -83,42 +125,4 @@ class RegularExpressions:
         2,
         2,
         2
-    ]
-    # このリストに含まれる正規表現に当てはまる文字列があるとき、
-    # 改行対象でも改行しない
-    # 主にその略語の後に文が続きそうなものが対象
-    # 単なる略語は文末にも存在し得るので対象外
-    # 参考：[参考文献リストやデータベースに出てくる略語・用語一覧]
-    # (https://www.dl.itc.u-tokyo.ac.jp/gacos/supportbook/16.html)
-    return_ignore_lines = [
-        r"\s+(e\.g|et al|etc|ex)\.$",
-        r"\s+(ff|figs?)\.$",
-        r"\s+(i\.e|illus)\.$",
-        r"\s+ll\.$",
-        r"\s+(Mr|Ms|Mrs)\.$",
-        r"\s+(pp|par|pt)\.$",
-        r"\s+sec\.$",
-        # "["が始まっているが"]"で閉じられていない(参考文献表記の途中など)
-        r"\[(?!.*\]).*$"
-    ]
-    # フォーマットの都合上どうしても入ってしまうノイズを置換する
-    # これはそのノイズ候補のリスト
-    # 一般的な表現の場合は諸刃の剣となるので注意
-    # また、リストの最初に近いほど優先して処理される
-    replace_source = [
-        r"\s*[0-9]+\s*of\s*[0-9]+\s*",   # "1 of 9" などのページカウント
-        r"\s*Li et al\.\s*"
-    ]
-    # ノイズをどのような文字列に置換するか
-    replace_target = [
-        " ",
-        " "
-    ]
-
-    # markdown用の置換リスト
-    markdown_replace_source = [
-        "•"
-    ]
-    markdown_replace_target = [
-        "-"
     ]
