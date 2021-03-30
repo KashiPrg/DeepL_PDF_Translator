@@ -100,7 +100,7 @@ class RegularExpressions:
         r"^$"
     ]
     # 見出しの日本語訳の先頭の数字などを消すためのパターン
-    header_japanese_remove = [
+    header_target_remove = [
         r"[0-9]+\s*\.\s*",
         r"\s*([0-9]+\s*\.\s*)*[0-9]+\s*",
         r"[0-9]+\s*\.\s*",

@@ -115,6 +115,13 @@ pip install -r requirements.txt
 
 ## バージョン履歴
 
+### v0.4.2
+<details open>
+
+- 各種正規表現にヒットした行の出力機能を強化
+
+</details>
+
 ### v0.4.1
 <details open>
 
