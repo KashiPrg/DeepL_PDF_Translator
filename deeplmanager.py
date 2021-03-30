@@ -1,13 +1,14 @@
-import platform
 import re
 import selenium.common.exceptions as sce
 import wx
 
 from enum import Enum
 from selenium import webdriver
-from selenium.webdriver.common.keys import Keys
 from sys import stderr
 from time import sleep
+from webdriver_manager.chrome import ChromeDriverManager
+from webdriver_manager.firefox import GeckoDriverManager
+from webdriver_manager.microsoft import EdgeChromiumDriverManager
 
 
 class Target_Lang(Enum):
@@ -77,40 +78,21 @@ class Browser(Enum):
 
 # DeepLでの翻訳を管理する
 class DeepLManager:
-    webDriverURLs = {
-        Browser.CHROME.value:
-            "https://sites.google.com/a/chromium.org/chromedriver/downloads",
-        Browser.EDGE.value:
-            "https://developer.microsoft.com/en-us/microsoft-edge/tools/webdriver/#downloads",
-        Browser.FIREFOX.value:
-            "https://github.com/mozilla/geckodriver/releases"
-    }
 
+    # WebDriverを自動でダウンロードして、プログラム制御可能なWebブラウザを開く
     def __init__(self, browser):
         try:
-            if platform.system() == "Windows":
-                # Windowsなら実行ファイルに拡張子が付く
-                if browser == Browser.CHROME.value:
-                    self.__webDriver = webdriver.Chrome("./drivers/chromedriver.exe")
-                elif browser == Browser.EDGE.value:
-                    self.__webDriver = webdriver.Edge("./drivers/msedgedriver.exe")
-                elif browser == Browser.FIREFOX.value:
-                    # Firefoxはなぜかexecutable_pathで指定しないとエラーが起きる
-                    self.__webDriver = webdriver.Firefox(executable_path="./drivers/geckodriver.exe")
-                else:
-                    self.__invalidBrowser()
+            if browser == Browser.CHROME.value:
+                self.__webDriver = webdriver.Chrome(ChromeDriverManager().install())
+            elif browser == Browser.EDGE.value:
+                self.__webDriver = webdriver.Edge(EdgeChromiumDriverManager().install())
+            elif browser == Browser.FIREFOX.value:
+                # Firefoxはなぜかexecutable_pathで指定しないとエラーが起きる
+                self.__webDriver = webdriver.Firefox(executable_path=GeckoDriverManager().install())
             else:
-                # MacやLinux(Windows以外)なら拡張子は付かない
-                if browser == Browser.CHROME.value:
-                    self.__webDriver = webdriver.Chrome("./drivers/chromedriver")
-                elif browser == Browser.EDGE.value:
-                    self.__webDriver = webdriver.Edge("./drivers/msedgedriver")
-                elif browser == Browser.FIREFOX.value:
-                    self.__webDriver = webdriver.Firefox(executable_path="./drivers/geckodriver")
-                else:
-                    self.__invalidBrowser()
+                self.__invalidBrowser()
         except sce.WebDriverException:
-            wx.LogError(browser + "、または" + browser + "のWebDriverがインストールされていません。\n\n" + browser + "をインストールするか、" + browser + "のWebDriverを\n" + self.webDriverURLs[browser] + " から入手し、driversディレクトリに配置してください。")
+            wx.LogError(browser + "がインストールされていません。\n\n" + browser + "をインストールするか、インストール済みの他の対応Webブラウザを選択してください。")
             exit(1)
 
     def __invalidBrowser(self):
@@ -121,8 +103,7 @@ class DeepLManager:
     def openDeepLPage(self):
         # 今のタブがDeepLなら何もしない
         try:
-            if self.__webDriver.current_url == \
-               "https://www.deepl.com/translator":
+            if self.__webDriver.current_url == "https://www.deepl.com/translator":
                 return
         except AttributeError:
             print("Error: webDriver is not initiated.", file=stderr)
@@ -131,8 +112,7 @@ class DeepLManager:
         # 他のタブにそのページがあるならそれを開いて終わり
         for tab in self.__webDriver.window_handles:
             self.__webDriver.switch_to.window(tab)
-            if self.__webDriver.current_url == \
-               "https://www.deepl.com/translator":
+            if self.__webDriver.current_url == "https://www.deepl.com/translator":
                 return
 
         # もしDeepLのページを開いているタブが無ければ新たに開く
@@ -156,7 +136,7 @@ class DeepLManager:
         source_textarea = self.__webDriver.find_element_by_css_selector(
             "textarea.lmt__textarea.lmt__source_textarea.lmt__textarea_base_style")
         # Ctrl+Aで全選択し、前の文を消しつつ原文を入力
-        source_textarea.send_keys(Keys.CONTROL, Keys.COMMAND, "a")
+        source_textarea.clear()
         source_textarea.send_keys(text)
 
         # 最初に5秒待つ
@@ -174,8 +154,7 @@ class DeepLManager:
             except sce.NoSuchElementException:
                 # ポップアップが無く、かつ[...]が無ければ翻訳完了として抜け出す
                 translated = self.__webDriver.find_element_by_css_selector(
-                    "textarea.lmt__textarea.lmt__target_textarea.lmt__textarea_base_style"
-                ).get_property("value")
+                    "textarea.lmt__textarea.lmt__target_textarea.lmt__textarea_base_style").get_property("value")
                 if not re.search(r"\[\.\.\.\]", translated):
                     break
             # ポップアップがあり、かつ制限時間内ならばもう1秒待つ
@@ -191,8 +170,7 @@ class DeepLManager:
 
         # 訳文の出力欄を取得し、訳文を取得
         translated = self.__webDriver.find_element_by_css_selector(
-            "textarea.lmt__textarea.lmt__target_textarea.lmt__textarea_base_style"
-        ).get_property("value")
+            "textarea.lmt__textarea.lmt__target_textarea.lmt__textarea_base_style").get_property("value")
 
         return translated
 

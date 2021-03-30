@@ -6,9 +6,8 @@ PDFファイルから人力で文章をコピーして、随所に挟まる改�
 ## 使い方
 
 1. `pip_install.bat`を起動するか(Windows)、`pip install -r requirements.txt`で必要なライブラリを入手してください。事前に`pip install --upgrade pip`でpipをアップデートしておくと、エラーが減るかもしれません。パーミッションエラーでインストールが正常に完了しない場合は、管理者権限で実行してください。
-2. `drivers`ディレクトリに、利用するブラウザのバージョンに合うWebDriverを入れてください。入手先は**動作環境**の欄に記載します。同梱していない理由は、再配布に関わるトラブルを回避するためです。
-3. `python main.py`で起動するとウィンドウが出るので、そこに翻訳したいPDFファイルをドラッグ&ドロップしてください。複数ファイルの入力にも対応しています。
-4. 翻訳が終わると`output`ディレクトリにtxtファイルが出力されます。
+2. `python main.py`で起動するとウィンドウが出るので、そこに翻訳したいPDFファイルをドラッグ&ドロップしてください。複数ファイルの入力にも対応しています。
+3. 翻訳が終わると`output`ディレクトリにtxtファイルが出力されます。
 
 最低限の翻訳機能に加えて、
 
@@ -25,6 +24,11 @@ PDFファイルから人力で文章をコピーして、随所に挟まる改�
 
 また、主な対象は英字論文を想定しているので、それ以外のPDF文書の翻訳については動作を保証していません(特に現実の書類をスキャンした文書など)。
 
+## アンインストール
+
+このソフトウェアのディレクトリ(フォルダ)を消去してください。  
+また、自動でダウンロードされたWebDriverが`(ユーザーディレクトリ)/.wdm`に入っているので、`.wdm`ディレクトリも消去すれば完全に元の状態に戻ります。
+
 ## 動作環境
 
 OS: Windows, MacOS  
@@ -32,12 +36,6 @@ Python: 3.7.9
 - Chrome
 - Edge
 - FireFox
-
-[WebDriver for Chrome](https://sites.google.com/a/chromium.org/chromedriver/downloads)  
-[WebDriver for Edge](https://developer.microsoft.com/en-us/microsoft-edge/tools/webdriver/#downloads)  
-[WebDriver for Firefox](https://github.com/mozilla/geckodriver/releases)
-
-ご使用のWebブラウザのバージョンに合わせたWebDriverをダウンロードしてください。
 
 ### 注意点
 
@@ -102,7 +100,6 @@ pip install -r requirements.txt
 ## 実装したい機能
 
 - 環境を整えるのが苦手な人のために、実行可能ファイルとしてリリースしたい(優先度はWindows > Mac > Linuxで。Linux使いの人は自分で環境を整えられるはず)
-- ↑を実現するために、webdriverを自動でダウンロードする機能が欲しい
 - 翻訳の進捗をプログレスバーで表示したい(実装しようとしたがwxPython側のバグらしき現象に遭遇)
 - 現状実装している機能をGUIで利用できるようにしたい
 - 各種正規表現をGUIで追加・編集・削除・インポート・エクスポートできるようにしたい
@@ -120,6 +117,8 @@ pip install -r requirements.txt
 
 - ファイル選択メニューから翻訳対象を選択可能に
 - 翻訳先の言語を選択する機能を追加
+- **WebDriverを自動で取得するように変更**
+- Firefoxで原文の入れ替えがうまくいかなくなっていたのを修正
 
 </details>
 
