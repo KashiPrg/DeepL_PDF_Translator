@@ -5,7 +5,7 @@ PDFファイルから人力で文章をコピーして、随所に挟まる改�
 
 ## 使い方
 
-Windowsをお使いの方は`release`ページからzipファイルをダウンロードして解凍・起動してください。  
+Windowsをお使いの方は右上のReleaseページからzipファイルをダウンロードして解凍・起動してください。  
 MacOS、Linux(動作未確認)をお使いの方は以下の手順で環境構築を行ってください。
 
 1. `pip install -r requirements.txt`で必要なライブラリを入手してください。事前に`pip install --upgrade pip`でpipをアップデートしておくと、エラーが減るかもしれません。パーミッションエラーでインストールが正常に完了しない場合は、管理者権限で実行してください。
@@ -37,7 +37,7 @@ MacOS、Linux(動作未確認)をお使いの方は以下の手順で環境構�
 ## 動作環境
 
 OS: Windows, MacOS  
-Python: 3.7.9
+Python: 3.7.9(実行ファイルを利用しない場合)
 - Chrome
 - Edge
 - FireFox
