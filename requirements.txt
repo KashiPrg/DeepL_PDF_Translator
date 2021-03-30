@@ -1,3 +1,4 @@
 pdfminer.six
 selenium
+webdriver-manager
 wxPython
