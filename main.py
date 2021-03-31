@@ -3,6 +3,7 @@ import wx
 from deeplmanager import Target_Lang, language_dict, Browser, DeepLManager
 from enum import Enum
 from pdftranslator import PDFTranslator
+from settings import Settings, MainWindowSettings
 
 
 class MenuBar_Menu(Enum):
@@ -18,6 +19,18 @@ class MenuBar_Menu(Enum):
     EDIT_HEADER_RE = 207
 
 
+class ComboBox_ID(Enum):
+    TARGET_LANG = 1
+    WEB_BROWSER = 2
+
+
+class CheckBox_ID(Enum):
+    ADD_TARGET_RETURN = 3
+    RETURN_TYPE_MARKDOWN = 4
+    OUTPUT_SOURCE = 5
+    SOURCE_AS_COMMENT = 6
+
+
 class MyFileDropTarget(wx.FileDropTarget):
     def __init__(self, window):
         wx.FileDropTarget.__init__(self)
@@ -26,7 +39,7 @@ class MyFileDropTarget(wx.FileDropTarget):
     # ウィンドウにファイルがドロップされた時
     def OnDropFiles(self, x, y, filenames):
         # 各種チェックボックスの値を取得
-        add_japanese_return = self.window.chkbx_japanese_return.Value
+        add_target_return = self.window.chkbx_target_return.Value
         output_type_markdown = self.window.chkbx_return_markdown.Value
         output_source = self.window.chkbx_output_source.Value
         source_as_comment = self.window.chkbx_source_as_comment.Value
@@ -37,7 +50,7 @@ class MyFileDropTarget(wx.FileDropTarget):
         p_tl = PDFTranslator(
             deepLManager,
             language_dict[self.window.GetTargetLangSelection()],
-            add_japanese_return,
+            add_target_return,
             output_type_markdown,
             output_source,
             source_as_comment,
@@ -65,11 +78,14 @@ class WindowFrame(wx.Frame):
     def __init__(self):
         wx.Frame.__init__(self, None, title="DeepL PDF Translator", size=(500, 250))
 
+        # 設定を取得
+        self.__settings = Settings()
+
         # メニューバーを設定
         menu_bar = wx.MenuBar()
         menu_bar.Append(WindowFrame.FileMenu(), "ファイル")
         menu_bar.Append(WindowFrame.EditMenu(), "編集")
-        self.Bind(wx.EVT_MENU, self.SelectedMenu)    # メニュー選択時のイベント
+        self.Bind(wx.EVT_MENU, self.Menu_Event)    # メニュー選択時のイベント
         self.SetMenuBar(menu_bar)
 
         p = wx.Panel(self)
@@ -80,8 +96,9 @@ class WindowFrame(wx.Frame):
         sizer.Add(target_lang_label, flag=wx.ALIGN_LEFT | wx.TOP | wx.LEFT, border=10)
 
         # 言語選択のコンボボックス
-        self.target_lang_combo = WindowFrame.TargetLangCombo(p)
-        self.target_lang_combo.SetStringSelection(Target_Lang.JAPANESE.value)
+        self.target_lang_combo = WindowFrame.TargetLangCombo(p, ComboBox_ID.TARGET_LANG.value)  # 下で設定したクラスから引っ張ってくる
+        self.target_lang_combo.SetStringSelection(self.__settings.GetMainWindowSetting(MainWindowSettings.STR_TARGET_LANG))     # 最初の値を設定ファイルから引っ張ってくる
+        self.target_lang_combo.Bind(wx.EVT_COMBOBOX, self.TargetLangCombo_Event)   # 選択時のイベントを設定
         sizer.Add(self.target_lang_combo, flag=wx.ALIGN_LEFT | wx.LEFT, border=10)
 
         # ブラウザ選択のラベル
@@ -89,29 +106,34 @@ class WindowFrame(wx.Frame):
         sizer.Add(browser_label, flag=wx.ALIGN_LEFT | wx.LEFT, border=10)
 
         # ブラウザ選択のコンボボックス
-        self.browser_combo = WindowFrame.BrowserCombo(p)
-        self.browser_combo.SetStringSelection(Browser.CHROME.value)
+        self.browser_combo = WindowFrame.BrowserCombo(p, ComboBox_ID.WEB_BROWSER.value)
+        self.browser_combo.SetStringSelection(self.__settings.GetMainWindowSetting(MainWindowSettings.STR_WEB_BROWSER))
+        self.browser_combo.Bind(wx.EVT_COMBOBOX, self.BrowserCombo_Event)
         sizer.Add(self.browser_combo, flag=wx.ALIGN_LEFT | wx.LEFT | wx.BOTTOM, border=10)
 
         # 各種チェックボックス
-        self.chkbx_japanese_return = wx.CheckBox(p, -1, "翻訳文を一文ごとに改行する")
-        self.chkbx_japanese_return.SetToolTip("出力された日本語の翻訳文を、\"。\"の位置で改行します")
-        self.chkbx_japanese_return.SetValue(True)
-        sizer.Add(self.chkbx_japanese_return, flag=wx.ALIGN_LEFT | wx.TOP | wx.LEFT, border=10)
+        self.chkbx_target_return = wx.CheckBox(p, CheckBox_ID.ADD_TARGET_RETURN.value, "翻訳文を一文ごとに改行する")
+        self.chkbx_target_return.SetToolTip("出力された日本語の翻訳文を、\"。\"の位置で改行します")
+        self.chkbx_target_return.SetValue(self.__settings.GetMainWindowSetting(MainWindowSettings.BOOL_ADD_TARGET_RETURN))
+        self.chkbx_target_return.Bind(wx.EVT_CHECKBOX, self.CheckBox_TargetReturn_Event)
+        sizer.Add(self.chkbx_target_return, flag=wx.ALIGN_LEFT | wx.TOP | wx.LEFT, border=10)
 
-        self.chkbx_return_markdown = wx.CheckBox(p, -1, "出力をMarkdown式にする")
+        self.chkbx_return_markdown = wx.CheckBox(p, CheckBox_ID.RETURN_TYPE_MARKDOWN.value, "出力をMarkdown式にする")
         self.chkbx_return_markdown.SetToolTip("見出しや改行をMarkdown式にします")
-        self.chkbx_return_markdown.SetValue(True)
+        self.chkbx_return_markdown.SetValue(self.__settings.GetMainWindowSetting(MainWindowSettings.BOOL_RETURN_TYPE_MARKDOWN))
+        self.chkbx_return_markdown.Bind(wx.EVT_CHECKBOX, self.CheckBox_ReturnMarkdown_Event)
         sizer.Add(self.chkbx_return_markdown, flag=wx.ALIGN_LEFT | wx.LEFT, border=10)
 
-        self.chkbx_output_source = wx.CheckBox(p, -1, "原文を出力する")
+        self.chkbx_output_source = wx.CheckBox(p, CheckBox_ID.OUTPUT_SOURCE.value, "原文を出力する")
         self.chkbx_output_source.SetToolTip("原文と翻訳文をセットで出力します。")
-        self.chkbx_output_source.SetValue(True)
+        self.chkbx_output_source.SetValue(self.__settings.GetMainWindowSetting(MainWindowSettings.BOOL_OUTPUT_SOURCE))
+        self.chkbx_output_source.Bind(wx.EVT_CHECKBOX, self.CheckBox_OutputSource_Event)
         sizer.Add(self.chkbx_output_source, flag=wx.ALIGN_LEFT | wx.LEFT, border=10)
 
-        self.chkbx_source_as_comment = wx.CheckBox(p, -1, "原文をコメントとして出力する")
+        self.chkbx_source_as_comment = wx.CheckBox(p, CheckBox_ID.SOURCE_AS_COMMENT.value, "原文をコメントとして出力する")
         self.chkbx_source_as_comment.SetToolTip("Markdown形式において、原文をコメントとして出力します。")
-        self.chkbx_source_as_comment.SetValue(True)
+        self.chkbx_source_as_comment.SetValue(self.__settings.GetMainWindowSetting(MainWindowSettings.BOOL_SOURCE_AS_COMMENT))
+        self.chkbx_source_as_comment.Bind(wx.EVT_CHECKBOX, self.CheckBox_SourceAsComment_Event)
         sizer.Add(self.chkbx_source_as_comment, flag=wx.ALIGN_LEFT | wx.LEFT, border=10)
 
         p.SetSizer(sizer)
@@ -119,6 +141,25 @@ class WindowFrame(wx.Frame):
         dt = MyFileDropTarget(self)
         self.SetDropTarget(dt)
         self.Show()
+
+    # 各種チェックボックス選択時に発生するイベント
+    def CheckBox_TargetReturn_Event(self, event):
+        self.__settings.SetMainWindowSetting(MainWindowSettings.BOOL_ADD_TARGET_RETURN, self.chkbx_target_return.GetValue())
+
+    def CheckBox_ReturnMarkdown_Event(self, event):
+        self.__settings.SetMainWindowSetting(MainWindowSettings.BOOL_RETURN_TYPE_MARKDOWN, self.chkbx_return_markdown.GetValue())
+
+    def CheckBox_OutputSource_Event(self, event):
+        self.__settings.SetMainWindowSetting(MainWindowSettings.BOOL_OUTPUT_SOURCE, self.chkbx_output_source.GetValue())
+
+    def CheckBox_SourceAsComment_Event(self, event):
+        self.__settings.SetMainWindowSetting(MainWindowSettings.BOOL_SOURCE_AS_COMMENT, self.chkbx_source_as_comment.GetValue())
+
+    def TargetLangCombo_Event(self, event):
+        """
+        言語選択のコンボボックス選択時に発生するイベント
+        """
+        self.__settings.SetMainWindowSetting(MainWindowSettings.STR_TARGET_LANG, self.GetTargetLangSelection())
 
     def GetTargetLangSelection(self):
         """
@@ -136,7 +177,7 @@ class WindowFrame(wx.Frame):
         Args:
             parent: 親要素
         """
-        def __init__(self, parent):
+        def __init__(self, parent, id):
             target_lang_combo_elements = [
                 Target_Lang.BULGARIAN.value,
                 Target_Lang.CHINESE_SIMPLIFIED.value,
@@ -165,7 +206,13 @@ class WindowFrame(wx.Frame):
                 Target_Lang.SPANISH.value,
                 Target_Lang.SWEDISH.value
             ]
-            super().__init__(parent, wx.ID_ANY, "言語を選択", choices=sorted(target_lang_combo_elements), style=wx.CB_READONLY)
+            super().__init__(parent, id, "言語を選択", choices=sorted(target_lang_combo_elements), style=wx.CB_READONLY)
+
+    def BrowserCombo_Event(self, event):
+        """
+        ブラウザ選択のコンボボックス選択時に発生するイベント
+        """
+        self.__settings.SetMainWindowSetting(MainWindowSettings.STR_WEB_BROWSER, self.GetBrowserSelection())
 
     def GetBrowserSelection(self):
         """
@@ -184,15 +231,15 @@ class WindowFrame(wx.Frame):
         Args:
             parent: 親要素
         """
-        def __init__(self, parent):
+        def __init__(self, parent, id):
             browser_combo_elements = (
                 Browser.CHROME.value,
                 Browser.EDGE.value,
                 Browser.FIREFOX.value
             )
-            super().__init__(parent, wx.ID_ANY, "ブラウザを選択", choices=browser_combo_elements, style=wx.CB_READONLY)
+            super().__init__(parent, id, "ブラウザを選択", choices=browser_combo_elements, style=wx.CB_READONLY)
 
-    def SelectedMenu(self, event):
+    def Menu_Event(self, event):
         """
         選ばれたメニューに応じて操作を行う
         """
@@ -222,7 +269,7 @@ class WindowFrame(wx.Frame):
         p_tl = PDFTranslator(
             DeepLManager(self.GetBrowserSelection()),
             language_dict[self.GetTargetLangSelection()],
-            self.chkbx_japanese_return.Value,
+            self.chkbx_target_return.Value,
             self.chkbx_return_markdown.Value,
             self.chkbx_output_source.Value,
             self.chkbx_source_as_comment,
