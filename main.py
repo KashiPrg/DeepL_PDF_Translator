@@ -1,6 +1,6 @@
 import wx
 
-from deeplmanager import Target_Lang, language_dict, Browser, DeepLManager
+from deeplmanager import Target_Lang, Browser, DeepLManager
 from enum import Enum
 from pdftranslator import PDFTranslator
 from settings import Settings
@@ -38,33 +38,11 @@ class MyFileDropTarget(wx.FileDropTarget):
 
     # ウィンドウにファイルがドロップされた時
     def OnDropFiles(self, x, y, filenames):
-        # 各種チェックボックスの値を取得
-        add_target_return = self.window.chkbx_target_return.Value
-        output_type_markdown = self.window.chkbx_return_markdown.Value
-        output_source = self.window.chkbx_output_source.Value
-        source_as_comment = self.window.chkbx_source_as_comment.Value
 
         # 選択に応じたブラウザを用意
         deepLManager = DeepLManager(self.window.GetBrowserSelection())
 
-        p_tl = PDFTranslator(
-            deepLManager,
-            language_dict[self.window.GetTargetLangSelection()],
-            add_target_return,
-            output_type_markdown,
-            output_source,
-            source_as_comment,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False
-        )
+        p_tl = PDFTranslator()
 
         for fn in filenames:
             p_tl.PDFTranslate(fn)
@@ -123,7 +101,7 @@ class WindowFrame(wx.Frame):
 
         self.chkbx_return_markdown = wx.CheckBox(p, CheckBox_ID.RETURN_TYPE_MARKDOWN.value, "出力をMarkdown式にする")
         self.chkbx_return_markdown.SetToolTip("見出しや改行をMarkdown式にします")
-        self.chkbx_return_markdown.SetValue(self.__settings.settings["main_window"]["bool_return_type_markdown"])
+        self.chkbx_return_markdown.SetValue(self.__settings.settings["main_window"]["bool_output_type_markdown"])
         self.chkbx_return_markdown.Bind(wx.EVT_CHECKBOX, self.CheckBox_ReturnMarkdown_Event)
         sizer.Add(self.chkbx_return_markdown, flag=wx.ALIGN_LEFT | wx.LEFT, border=10)
 
@@ -155,7 +133,7 @@ class WindowFrame(wx.Frame):
         self.__settings.settings["main_window"]["bool_add_target_return"] = self.chkbx_target_return.GetValue()
 
     def CheckBox_ReturnMarkdown_Event(self, event):
-        self.__settings.settings["main_window"]["bool_return_type_markdown"] = self.chkbx_return_markdown.GetValue()
+        self.__settings.settings["main_window"]["bool_output_type_markdown"] = self.chkbx_return_markdown.GetValue()
 
     def CheckBox_OutputSource_Event(self, event):
         self.__settings.settings["main_window"]["bool_output_source"] = self.chkbx_output_source.GetValue()
@@ -274,26 +252,7 @@ class WindowFrame(wx.Frame):
         # ファイルを選択させる
         dialog.ShowModal()
 
-        p_tl = PDFTranslator(
-            DeepLManager(self.GetBrowserSelection()),
-            language_dict[self.GetTargetLangSelection()],
-            self.chkbx_target_return.Value,
-            self.chkbx_return_markdown.Value,
-            self.chkbx_output_source.Value,
-            self.chkbx_source_as_comment,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False
-        )
-
-        return p_tl.PDFTranslate(dialog.GetPath())
+        return PDFTranslator().PDFTranslate(dialog.GetPath())
 
     class EditMenu(wx.Menu):
         """

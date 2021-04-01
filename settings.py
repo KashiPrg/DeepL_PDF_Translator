@@ -1,7 +1,7 @@
 import json
 
 from copy import deepcopy
-from deeplmanager import Target_Lang, Browser
+from deeplmanager import Browser, language_dict, Target_Lang
 from pathlib import Path
 
 
@@ -10,7 +10,7 @@ default_settings = {
         "str_target_lang": Target_Lang.JAPANESE.value,
         "str_web_browser": Browser.CHROME.value,
         "bool_add_target_return": True,
-        "bool_return_type_markdown": True,
+        "bool_output_type_markdown": True,
         "bool_output_source": True,
         "bool_source_as_comment": True
     },
@@ -138,7 +138,7 @@ default_settings = {
             },
             "markdown": {
                 "bool_enabled_overall": True,
-                "output_hit_lines": False,
+                "bool_output_hit_lines": False,
                 "list_bool_enabled": [
                     True
                 ],
@@ -181,7 +181,7 @@ default_settings = {
         "return_lines": {
             "possibility": {
                 "bool_enabled_overall": True,
-                "output_hit_lines": False,
+                "bool_output_hit_lines": False,
                 "list_bool_enabled": [
                     True,
                     True,
@@ -255,7 +255,7 @@ default_settings = {
             },
             "ignore": {
                 "bool_enabled_overall": True,
-                "output_hit_lines": False,
+                "bool_output_hit_lines": False,
                 "list_bool_enabled": [
                     True,
                     True,
@@ -485,3 +485,7 @@ class Settings(Singleton):
 
         with open(str(self.__settings_path), "r", encoding="utf-8") as f:
             self.settings = json.load(f)
+
+    @property
+    def TargetLanguage(self):
+        return language_dict[self.settings["main_window"]["str_target_lang"]]
