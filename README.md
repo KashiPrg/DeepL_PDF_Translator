@@ -130,6 +130,8 @@ pip install -r requirements.txt
 
 - メインウインドウの設定の保存機能を追加。次回起動時に前回終了時の設定が再現される
 
+</details>
+
 ### v0.5.0
 <details open>
 

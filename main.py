@@ -1,34 +1,9 @@
 import wx
 
-from deeplmanager import Target_Lang, Browser, DeepLManager
-from enum import Enum
-from pdftranslator import PDFTranslator
+from data import MenuBar_Menu, ComboBox_ID, CheckBox_ID, Target_Lang, Browser
+from deeplmanager import DeepLManager
+from pdftranslator import PDFTranslate
 from settings import Settings
-
-
-class MenuBar_Menu(Enum):
-    OPEN_PDF_FILE = 101
-    EDIT_START_RE = 201
-    EDIT_END_RE = 202
-    CHECKBOX_IGNORE_START_CONDITION = 20101
-    CHECKBOX_IGNORE_END_CONDITION = 20201
-    EDIT_IGNORE_RE = 203
-    EDIT_RETURN_RE = 204
-    EDIT_RETURN_IGNORE_RE = 205
-    EDIT_REPLACE_RE = 206
-    EDIT_HEADER_RE = 207
-
-
-class ComboBox_ID(Enum):
-    TARGET_LANG = 1
-    WEB_BROWSER = 2
-
-
-class CheckBox_ID(Enum):
-    ADD_TARGET_RETURN = 3
-    RETURN_TYPE_MARKDOWN = 4
-    OUTPUT_SOURCE = 5
-    SOURCE_AS_COMMENT = 6
 
 
 class MyFileDropTarget(wx.FileDropTarget):
@@ -39,15 +14,8 @@ class MyFileDropTarget(wx.FileDropTarget):
     # ウィンドウにファイルがドロップされた時
     def OnDropFiles(self, x, y, filenames):
 
-        # 選択に応じたブラウザを用意
-        deepLManager = DeepLManager(self.window.GetBrowserSelection())
-
-        p_tl = PDFTranslator()
-
         for fn in filenames:
-            p_tl.PDFTranslate(fn)
-
-        deepLManager.closeWindow()
+            PDFTranslate(fn)
 
         return True
 
@@ -126,6 +94,7 @@ class WindowFrame(wx.Frame):
     # ウィンドウを閉じるときに発生するイベント
     def Window_Close_Event(self, event):
         self.__settings.SaveSettings()  # 変更した設定を保存する
+        DeepLManager.closeWindow()  # DeepL用のウェブブラウザを閉じる
         self.Destroy()  # イベントを発行すると自動では閉じなくなるので手動で閉じる
 
     # 各種チェックボックス選択時に発生するイベント
@@ -252,7 +221,7 @@ class WindowFrame(wx.Frame):
         # ファイルを選択させる
         dialog.ShowModal()
 
-        return PDFTranslator().PDFTranslate(dialog.GetPath())
+        return PDFTranslate(dialog.GetPath())
 
     class EditMenu(wx.Menu):
         """
