@@ -1,7 +1,7 @@
 from enum import Enum
 
 
-class MenuBar_Menu(Enum):
+class MainWindow_MenuBar_Menu(Enum):
     OPEN_PDF_FILE = 101
     EDIT_START_RE = 201
     EDIT_END_RE = 202
@@ -14,12 +14,12 @@ class MenuBar_Menu(Enum):
     EDIT_HEADER_RE = 207
 
 
-class ComboBox_ID(Enum):
+class MainWindow_ComboBox_ID(Enum):
     TARGET_LANG = 1
     WEB_BROWSER = 2
 
 
-class CheckBox_ID(Enum):
+class MainWindow_CheckBox_ID(Enum):
     ADD_TARGET_RETURN = 3
     OUTPUT_TYPE_MARKDOWN = 4
     OUTPUT_SOURCE = 5

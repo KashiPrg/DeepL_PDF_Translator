@@ -1,6 +1,6 @@
 import wx
 
-from data import MenuBar_Menu, ComboBox_ID, CheckBox_ID, Target_Lang, Browser
+from data import Target_Lang, Browser, MainWindow_MenuBar_Menu, MainWindow_ComboBox_ID, MainWindow_CheckBox_ID
 from deeplmanager import DeepLManager
 from pdftranslator import PDFTranslate
 from settings import Settings
@@ -42,7 +42,7 @@ class WindowFrame(wx.Frame):
         sizer.Add(target_lang_label, flag=wx.ALIGN_LEFT | wx.TOP | wx.LEFT, border=10)
 
         # 言語選択のコンボボックス
-        self.target_lang_combo = WindowFrame.TargetLangCombo(p, ComboBox_ID.TARGET_LANG.value)  # 下で設定したクラスから引っ張ってくる
+        self.target_lang_combo = WindowFrame.TargetLangCombo(p, MainWindow_ComboBox_ID.TARGET_LANG.value)  # 下で設定したクラスから引っ張ってくる
         self.target_lang_combo.SetStringSelection(Settings.target_language)     # 最初の値を設定ファイルから引っ張ってくる
         self.target_lang_combo.Bind(wx.EVT_COMBOBOX, self.TargetLangCombo_Event)   # 選択時のイベントを設定
         sizer.Add(self.target_lang_combo, flag=wx.ALIGN_LEFT | wx.LEFT, border=10)
@@ -52,31 +52,31 @@ class WindowFrame(wx.Frame):
         sizer.Add(browser_label, flag=wx.ALIGN_LEFT | wx.LEFT, border=10)
 
         # ブラウザ選択のコンボボックス
-        self.browser_combo = WindowFrame.BrowserCombo(p, ComboBox_ID.WEB_BROWSER.value)
+        self.browser_combo = WindowFrame.BrowserCombo(p, MainWindow_ComboBox_ID.WEB_BROWSER.value)
         self.browser_combo.SetStringSelection(Settings.web_browser)
         self.browser_combo.Bind(wx.EVT_COMBOBOX, self.BrowserCombo_Event)
         sizer.Add(self.browser_combo, flag=wx.ALIGN_LEFT | wx.LEFT | wx.BOTTOM, border=10)
 
         # 各種チェックボックス
-        self.chkbx_target_return = wx.CheckBox(p, CheckBox_ID.ADD_TARGET_RETURN.value, "翻訳文を一文ごとに改行する")
+        self.chkbx_target_return = wx.CheckBox(p, MainWindow_CheckBox_ID.ADD_TARGET_RETURN.value, "翻訳文を一文ごとに改行する")
         self.chkbx_target_return.SetToolTip("出力された日本語の翻訳文を、\"。\"の位置で改行します")
         self.chkbx_target_return.SetValue(Settings.add_target_return)
         self.chkbx_target_return.Bind(wx.EVT_CHECKBOX, self.CheckBox_TargetReturn_Event)
         sizer.Add(self.chkbx_target_return, flag=wx.ALIGN_LEFT | wx.TOP | wx.LEFT, border=10)
 
-        self.chkbx_return_markdown = wx.CheckBox(p, CheckBox_ID.OUTPUT_TYPE_MARKDOWN.value, "出力をMarkdown式にする")
+        self.chkbx_return_markdown = wx.CheckBox(p, MainWindow_CheckBox_ID.OUTPUT_TYPE_MARKDOWN.value, "出力をMarkdown式にする")
         self.chkbx_return_markdown.SetToolTip("見出しや改行をMarkdown式にします")
         self.chkbx_return_markdown.SetValue(Settings.output_type_markdown)
         self.chkbx_return_markdown.Bind(wx.EVT_CHECKBOX, self.CheckBox_ReturnMarkdown_Event)
         sizer.Add(self.chkbx_return_markdown, flag=wx.ALIGN_LEFT | wx.LEFT, border=10)
 
-        self.chkbx_output_source = wx.CheckBox(p, CheckBox_ID.OUTPUT_SOURCE.value, "原文を出力する")
+        self.chkbx_output_source = wx.CheckBox(p, MainWindow_CheckBox_ID.OUTPUT_SOURCE.value, "原文を出力する")
         self.chkbx_output_source.SetToolTip("原文と翻訳文をセットで出力します。")
         self.chkbx_output_source.SetValue(Settings.output_source)
         self.chkbx_output_source.Bind(wx.EVT_CHECKBOX, self.CheckBox_OutputSource_Event)
         sizer.Add(self.chkbx_output_source, flag=wx.ALIGN_LEFT | wx.LEFT, border=10)
 
-        self.chkbx_source_as_comment = wx.CheckBox(p, CheckBox_ID.SOURCE_AS_COMMENT.value, "原文をコメントとして出力する")
+        self.chkbx_source_as_comment = wx.CheckBox(p, MainWindow_CheckBox_ID.SOURCE_AS_COMMENT.value, "原文をコメントとして出力する")
         self.chkbx_source_as_comment.SetToolTip("Markdown形式において、原文をコメントとして出力します。")
         self.chkbx_source_as_comment.SetValue(Settings.source_as_comment)
         self.chkbx_source_as_comment.Bind(wx.EVT_CHECKBOX, self.CheckBox_SourceAsComment_Event)
@@ -196,7 +196,7 @@ class WindowFrame(wx.Frame):
         選ばれたメニューに応じて操作を行う
         """
         event_id = event.GetId()
-        if event_id == MenuBar_Menu.OPEN_PDF_FILE.value:
+        if event_id == MainWindow_MenuBar_Menu.OPEN_PDF_FILE.value:
             self.OpenAndTranslatePDF()
 
     class FileMenu(wx.Menu):
@@ -205,7 +205,7 @@ class WindowFrame(wx.Frame):
         """
         def __init__(self):
             super().__init__()
-            self.Append(MenuBar_Menu.OPEN_PDF_FILE.value, "翻訳対象のPDFファイルを開く")
+            self.Append(MainWindow_MenuBar_Menu.OPEN_PDF_FILE.value, "翻訳対象のPDFファイルを開く")
 
     def OpenAndTranslatePDF(self):
         # ファイル選択ダイアログを作成
@@ -226,16 +226,16 @@ class WindowFrame(wx.Frame):
         """
         def __init__(self):
             super().__init__()
-            self.Append(MenuBar_Menu.EDIT_START_RE.value, "翻訳開始条件の正規表現を編集")
-            self.Append(MenuBar_Menu.EDIT_END_RE.value, "翻訳終了条件の正規表現を編集")
-            self.start_ignore = self.AppendCheckItem(MenuBar_Menu.CHECKBOX_IGNORE_START_CONDITION.value, "翻訳開始条件を無視して最初から翻訳する")
-            self.end_ignore = self.AppendCheckItem(MenuBar_Menu.CHECKBOX_IGNORE_END_CONDITION.value, "翻訳終了条件を無視して最後まで翻訳する")
+            self.Append(MainWindow_MenuBar_Menu.EDIT_START_RE.value, "翻訳開始条件の正規表現を編集")
+            self.Append(MainWindow_MenuBar_Menu.EDIT_END_RE.value, "翻訳終了条件の正規表現を編集")
+            self.start_ignore = self.AppendCheckItem(MainWindow_MenuBar_Menu.CHECKBOX_IGNORE_START_CONDITION.value, "翻訳開始条件を無視して最初から翻訳する")
+            self.end_ignore = self.AppendCheckItem(MainWindow_MenuBar_Menu.CHECKBOX_IGNORE_END_CONDITION.value, "翻訳終了条件を無視して最後まで翻訳する")
             self.AppendSeparator()
-            self.Append(MenuBar_Menu.EDIT_IGNORE_RE.value, "無視条件の正規表現を編集")
-            self.Append(MenuBar_Menu.EDIT_RETURN_RE.value, "段落終了条件の正規表現を編集")
-            self.Append(MenuBar_Menu.EDIT_RETURN_IGNORE_RE.value, "段落終了無視条件の正規表現を編集")
-            self.Append(MenuBar_Menu.EDIT_REPLACE_RE.value, "置換条件の正規表現を編集")
-            self.Append(MenuBar_Menu.EDIT_HEADER_RE.value, "見出し条件の正規表現を編集")
+            self.Append(MainWindow_MenuBar_Menu.EDIT_IGNORE_RE.value, "無視条件の正規表現を編集")
+            self.Append(MainWindow_MenuBar_Menu.EDIT_RETURN_RE.value, "段落終了条件の正規表現を編集")
+            self.Append(MainWindow_MenuBar_Menu.EDIT_RETURN_IGNORE_RE.value, "段落終了無視条件の正規表現を編集")
+            self.Append(MainWindow_MenuBar_Menu.EDIT_REPLACE_RE.value, "置換条件の正規表現を編集")
+            self.Append(MainWindow_MenuBar_Menu.EDIT_HEADER_RE.value, "見出し条件の正規表現を編集")
 
 
 if __name__ == '__main__':
