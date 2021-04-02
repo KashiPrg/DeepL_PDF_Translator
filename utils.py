@@ -1,10 +1,11 @@
-class Singleton(object):
-    """
-    このクラスを継承したクラスは、インスタンスが1つ以下しか形成されないことを保証する。
-    最初にインスタンスを生成するときは普通と変わらず生成され、
-    2回目以降に生成するときは1回目に生成したインスタンスを返す。
-    """
-    def __new__(cls, *args, **kargs):
-        if not hasattr(cls, "_instance"):
-            cls._instance = super(Singleton, cls).__new__(cls)
-        return cls._instance
+class classproperty(property):
+    pass
+
+
+class ClassProperty(type):
+    def __new__(cls, name, bases, namespace):
+        props = [(k, v) for k, v in namespace.items() if type(v) == classproperty]
+        for k, v in props:
+            setattr(cls, k, v)
+            del namespace[k]
+        return type.__new__(cls, name, bases, namespace)

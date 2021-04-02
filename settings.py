@@ -3,29 +3,36 @@ import json
 from copy import deepcopy
 from data import default_settings, language_dict
 from pathlib import Path
-from utils import Singleton
+from utils import ClassProperty, classproperty
 
 
-class Settings(Singleton):
+class Settings(metaclass=ClassProperty):
     """
-    設定を扱うクラス。
-    Singletonパターンを実装しているため、複数回インスタンスを生成しても同じインスタンスを返す。
+    設定を扱うクラス
     """
-    def __init__(self):
-        self.__settings_path = Path("settings.json")
+    __settings = None
+    __settings_path = Path("settings.json")
+
+    @classproperty
+    def settings(cls):
+        if not (cls.__settings is None):
+            return cls.__settings
+
         # settings.jsonが存在しない場合はデフォルト設定を出力
-        if not self.__settings_path.exists():
-            self.SaveSettings(save_default=True)
+        if not cls.__settings_path.exists():
+            cls.SaveSettings(save_default=True)
 
         # settings.jsonを読み取って設定を取得
-        self.LoadSettings()
+        cls.LoadSettings()
 
         # アップデートなどで設定の一部が欠けているときはデフォルト設定で追加
-        lack_of_settings = Settings.SettingComplement(self.settings, default_settings)
+        lack_of_settings = Settings.SettingComplement(cls.__settings, default_settings)
 
         # 設定が欠けていた場合はsettings.jsonに保存し直す
         if lack_of_settings:
-            self.SaveSettings()
+            cls.SaveSettings()
+
+        return cls.__settings
 
     @staticmethod
     def SettingComplement(settings, def_settings):
@@ -60,23 +67,25 @@ class Settings(Singleton):
 
         return lack_of_settings
 
-    def SaveSettings(self, save_default=False):
+    @classmethod
+    def SaveSettings(cls, save_default=False):
         """
         設定を保存する
 
         Args:
             save_default (bool, optional): デフォルト設定を保存するか
         """
-        with open(str(self.__settings_path), "w", encoding="utf-8") as f:
+        with open(str(cls.__settings_path), "w", encoding="utf-8") as f:
             json.dump(
-                default_settings if save_default else self.settings,
+                default_settings if save_default else cls.settings,
                 f,
                 ensure_ascii=False,
                 indent=4,
                 separators=(",", ": ")
             )
 
-    def LoadSettings(self, load_default=False):
+    @classmethod
+    def LoadSettings(cls, load_default=False):
         """
         設定を読み込む
 
@@ -84,12 +93,12 @@ class Settings(Singleton):
             load_default (bool, optional): デフォルト設定を読み込むか
         """
         if load_default:
-            self.settings = deepcopy(default_settings)
+            cls.__settings = deepcopy(default_settings)
             return
 
-        with open(str(self.__settings_path), "r", encoding="utf-8") as f:
-            self.settings = json.load(f)
+        with open(str(cls.__settings_path), "r", encoding="utf-8") as f:
+            cls.__settings = json.load(f)
 
-    @property
-    def TargetLanguage(self):
-        return language_dict[self.settings["main_window"]["str_target_lang"]]
+    @classproperty
+    def TargetLanguage(cls):
+        return language_dict[cls.settings["main_window"]["str_target_lang"]]

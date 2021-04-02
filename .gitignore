@@ -134,5 +134,8 @@ output/
 # settings
 settings.json
 
+# for test
+test.py
+
 # vscode
 .vscode/

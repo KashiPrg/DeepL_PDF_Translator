@@ -24,9 +24,6 @@ class WindowFrame(wx.Frame):
     def __init__(self):
         wx.Frame.__init__(self, None, title="DeepL PDF Translator", size=(500, 250))
 
-        # 設定を取得
-        self.__settings = Settings()
-
         # ウインドウを閉じた時のイベント
         self.Bind(wx.EVT_CLOSE, self.Window_Close_Event)
 
@@ -46,7 +43,7 @@ class WindowFrame(wx.Frame):
 
         # 言語選択のコンボボックス
         self.target_lang_combo = WindowFrame.TargetLangCombo(p, ComboBox_ID.TARGET_LANG.value)  # 下で設定したクラスから引っ張ってくる
-        self.target_lang_combo.SetStringSelection(self.__settings.settings["main_window"]["str_target_lang"])     # 最初の値を設定ファイルから引っ張ってくる
+        self.target_lang_combo.SetStringSelection(Settings.settings["main_window"]["str_target_lang"])     # 最初の値を設定ファイルから引っ張ってくる
         self.target_lang_combo.Bind(wx.EVT_COMBOBOX, self.TargetLangCombo_Event)   # 選択時のイベントを設定
         sizer.Add(self.target_lang_combo, flag=wx.ALIGN_LEFT | wx.LEFT, border=10)
 
@@ -56,32 +53,32 @@ class WindowFrame(wx.Frame):
 
         # ブラウザ選択のコンボボックス
         self.browser_combo = WindowFrame.BrowserCombo(p, ComboBox_ID.WEB_BROWSER.value)
-        self.browser_combo.SetStringSelection(self.__settings.settings["main_window"]["str_web_browser"])
+        self.browser_combo.SetStringSelection(Settings.settings["main_window"]["str_web_browser"])
         self.browser_combo.Bind(wx.EVT_COMBOBOX, self.BrowserCombo_Event)
         sizer.Add(self.browser_combo, flag=wx.ALIGN_LEFT | wx.LEFT | wx.BOTTOM, border=10)
 
         # 各種チェックボックス
         self.chkbx_target_return = wx.CheckBox(p, CheckBox_ID.ADD_TARGET_RETURN.value, "翻訳文を一文ごとに改行する")
         self.chkbx_target_return.SetToolTip("出力された日本語の翻訳文を、\"。\"の位置で改行します")
-        self.chkbx_target_return.SetValue(self.__settings.settings["main_window"]["bool_add_target_return"])
+        self.chkbx_target_return.SetValue(Settings.settings["main_window"]["bool_add_target_return"])
         self.chkbx_target_return.Bind(wx.EVT_CHECKBOX, self.CheckBox_TargetReturn_Event)
         sizer.Add(self.chkbx_target_return, flag=wx.ALIGN_LEFT | wx.TOP | wx.LEFT, border=10)
 
         self.chkbx_return_markdown = wx.CheckBox(p, CheckBox_ID.RETURN_TYPE_MARKDOWN.value, "出力をMarkdown式にする")
         self.chkbx_return_markdown.SetToolTip("見出しや改行をMarkdown式にします")
-        self.chkbx_return_markdown.SetValue(self.__settings.settings["main_window"]["bool_output_type_markdown"])
+        self.chkbx_return_markdown.SetValue(Settings.settings["main_window"]["bool_output_type_markdown"])
         self.chkbx_return_markdown.Bind(wx.EVT_CHECKBOX, self.CheckBox_ReturnMarkdown_Event)
         sizer.Add(self.chkbx_return_markdown, flag=wx.ALIGN_LEFT | wx.LEFT, border=10)
 
         self.chkbx_output_source = wx.CheckBox(p, CheckBox_ID.OUTPUT_SOURCE.value, "原文を出力する")
         self.chkbx_output_source.SetToolTip("原文と翻訳文をセットで出力します。")
-        self.chkbx_output_source.SetValue(self.__settings.settings["main_window"]["bool_output_source"])
+        self.chkbx_output_source.SetValue(Settings.settings["main_window"]["bool_output_source"])
         self.chkbx_output_source.Bind(wx.EVT_CHECKBOX, self.CheckBox_OutputSource_Event)
         sizer.Add(self.chkbx_output_source, flag=wx.ALIGN_LEFT | wx.LEFT, border=10)
 
         self.chkbx_source_as_comment = wx.CheckBox(p, CheckBox_ID.SOURCE_AS_COMMENT.value, "原文をコメントとして出力する")
         self.chkbx_source_as_comment.SetToolTip("Markdown形式において、原文をコメントとして出力します。")
-        self.chkbx_source_as_comment.SetValue(self.__settings.settings["main_window"]["bool_source_as_comment"])
+        self.chkbx_source_as_comment.SetValue(Settings.settings["main_window"]["bool_source_as_comment"])
         self.chkbx_source_as_comment.Bind(wx.EVT_CHECKBOX, self.CheckBox_SourceAsComment_Event)
         sizer.Add(self.chkbx_source_as_comment, flag=wx.ALIGN_LEFT | wx.LEFT, border=10)
 
@@ -93,28 +90,28 @@ class WindowFrame(wx.Frame):
 
     # ウィンドウを閉じるときに発生するイベント
     def Window_Close_Event(self, event):
-        self.__settings.SaveSettings()  # 変更した設定を保存する
+        Settings.SaveSettings()  # 変更した設定を保存する
         DeepLManager.closeWindow()  # DeepL用のウェブブラウザを閉じる
         self.Destroy()  # イベントを発行すると自動では閉じなくなるので手動で閉じる
 
     # 各種チェックボックス選択時に発生するイベント
     def CheckBox_TargetReturn_Event(self, event):
-        self.__settings.settings["main_window"]["bool_add_target_return"] = self.chkbx_target_return.GetValue()
+        Settings.settings["main_window"]["bool_add_target_return"] = self.chkbx_target_return.GetValue()
 
     def CheckBox_ReturnMarkdown_Event(self, event):
-        self.__settings.settings["main_window"]["bool_output_type_markdown"] = self.chkbx_return_markdown.GetValue()
+        Settings.settings["main_window"]["bool_output_type_markdown"] = self.chkbx_return_markdown.GetValue()
 
     def CheckBox_OutputSource_Event(self, event):
-        self.__settings.settings["main_window"]["bool_output_source"] = self.chkbx_output_source.GetValue()
+        Settings.settings["main_window"]["bool_output_source"] = self.chkbx_output_source.GetValue()
 
     def CheckBox_SourceAsComment_Event(self, event):
-        self.__settings.settings["main_window"]["bool_source_as_comment"] = self.chkbx_source_as_comment.GetValue()
+        Settings.settings["main_window"]["bool_source_as_comment"] = self.chkbx_source_as_comment.GetValue()
 
     def TargetLangCombo_Event(self, event):
         """
         言語選択のコンボボックス選択時に発生するイベント
         """
-        self.__settings.settings["main_window"]["str_target_lang"] = self.GetTargetLangSelection()
+        Settings.settings["main_window"]["str_target_lang"] = self.GetTargetLangSelection()
 
     def GetTargetLangSelection(self):
         """
@@ -167,7 +164,7 @@ class WindowFrame(wx.Frame):
         """
         ブラウザ選択のコンボボックス選択時に発生するイベント
         """
-        self.__settings.settings["main_window"]["str_web_browser"] = self.GetBrowserSelection()
+        Settings.settings["main_window"]["str_web_browser"] = self.GetBrowserSelection()
 
     def GetBrowserSelection(self):
         """

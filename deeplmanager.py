@@ -8,34 +8,37 @@ from selenium import webdriver
 from settings import Settings
 from sys import stderr
 from time import sleep
+from utils import ClassProperty, classproperty
 from webdriver_manager.chrome import ChromeDriverManager
 from webdriver_manager.firefox import GeckoDriverManager
 from webdriver_manager.microsoft import EdgeChromiumDriverManager
 
 
 # DeepLでの翻訳を管理する
-class DeepLManager:
+class DeepLManager(metaclass=ClassProperty):
     __webDriver = None
     __window_position = None
     __window_size = None
 
-    @classmethod
-    def GetWebDriver(cls):
+    @classproperty
+    def __deepLDriver(cls):
         # WebDriverが取得されていなければ取る
         if not (cls.__webDriver is None):
             try:
                 # この操作で例外が発生するなら、
                 # 一度取得したが何らかの要因でそのWebDriverのセッションが終了した
-                cls.RestoreWindow()
-                return
+                # ということなので新たに取得する
+                cls.__webDriver.get_window_position()
+                # いずれでもなければ今もウェブブラウザが開いているのでそれを返す
+                return cls.__webDriver
             except sce.WebDriverException:
                 pass
 
-        # 設定を引っ張ってくる
-        settings = Settings()
-        browser = settings.settings["main_window"]["str_web_browser"]
+        browser = Settings.settings["main_window"]["str_web_browser"]
 
         try:
+            # 使用するウェブブラウザの設定に沿ってWebDriverを取得
+            # webdriver_managerのおかげで自動でダウンロードしてくれる
             if browser == Browser.CHROME.value:
                 cls.__webDriver = webdriver.Chrome(ChromeDriverManager().install())
             elif browser == Browser.EDGE.value:
@@ -44,13 +47,16 @@ class DeepLManager:
                 # Firefoxはなぜかexecutable_pathで指定しないとエラーが起きる
                 cls.__webDriver = webdriver.Firefox(executable_path=GeckoDriverManager().install())
             else:
+                # 設定が壊れているなどで無効な値のときはエラーを発生させる
                 DeepLManager.invalidBrowser()
         except sce.WebDriverException:
+            # この状況でこの例外が発生するなら、指定のウェブブラウザがインストールされていない
             wx.LogError(browser + "がインストールされていません。\n\n" + browser + "をインストールするか、インストール済みの他の対応Webブラウザを選択してください。")
             exit(1)
 
         cls.__window_position = cls.__webDriver.get_window_position()
         cls.__window_size = cls.__webDriver.get_window_size()
+        return cls.__webDriver
 
     @staticmethod
     def invalidBrowser():
@@ -60,43 +66,41 @@ class DeepLManager:
     # DeepLのタブを開く
     @classmethod
     def openDeepLPage(cls):
-        # WebDriverが取得されていなければ取得する
-        cls.GetWebDriver()
-
         # 今のタブがDeepLなら何もしない
         try:
-            if search(r"^https://www.deepl.com/translator", cls.__webDriver.current_url):
+            if search(r"^https://www.deepl.com/translator", cls.__deepLDriver.current_url):
                 return
         except AttributeError:
             print("Error: webDriver is not initiated.", file=stderr)
             exit(1)
 
         # 他のタブにそのページがあるならそれを開いて終わり
-        for tab in cls.__webDriver.window_handles:
-            cls.__webDriver.switch_to.window(tab)
-            if cls.__webDriver.current_url == "https://www.deepl.com/translator":
+        for tab in cls.__deepLDriver.window_handles:
+            cls.__deepLDriver.switch_to.window(tab)
+            if cls.__deepLDriver.current_url == "https://www.deepl.com/translator":
                 return
 
         # もしDeepLのページを開いているタブが無ければ新たに開く
         # 新しいタブを開き、そのタブに移動
-        cls.__webDriver.execute_script("window.open('', '_blank');")
-        cls.__webDriver.switch_to.window(cls.__webDriver.window_handles[-1])
+        cls.__deepLDriver.execute_script("window.open('', '_blank');")
+        cls.__deepLDriver.switch_to.window(cls.__deepLDriver.window_handles[-1])
         # DeepLに接続
-        cls.__webDriver.get("https://www.deepl.com/translator")
+        cls.__deepLDriver.get("https://www.deepl.com/translator")
 
     # 渡された文を翻訳にかけ、訳文を返す
     @classmethod
     def translate(cls, text, lang="ja-JA", first_wait_secs=10, wait_secs_max=60):
         # DeepLのページが開かれていなければ開く
+        cls.RestoreWindow()
         cls.openDeepLPage()
 
         # 訳文の言語を選択するタブを開く
-        cls.__webDriver.find_element_by_xpath("//button[@dl-test='translator-target-lang-btn']").click()
+        cls.__deepLDriver.find_element_by_xpath("//button[@dl-test='translator-target-lang-btn']").click()
         # 訳文の言語のボタンを押す
-        cls.__webDriver.find_element_by_xpath("//button[@dl-test='translator-lang-option-" + lang + "']").click()
+        cls.__deepLDriver.find_element_by_xpath("//button[@dl-test='translator-lang-option-" + lang + "']").click()
 
         # 原文の入力欄を取得
-        source_textarea = cls.__webDriver.find_element_by_css_selector(
+        source_textarea = cls.__deepLDriver.find_element_by_css_selector(
             "textarea.lmt__textarea.lmt__source_textarea.lmt__textarea_base_style")
         # Ctrl+Aで全選択し、前の文を消しつつ原文を入力
         source_textarea.clear()
@@ -112,11 +116,11 @@ class DeepLManager:
             try:
                 # 通常時はdiv.lmt_progress_popupだが、ポップアップが可視化するときは
                 # lmt_progress_popup--visible(_2)が追加される
-                _ = cls.__webDriver.find_element_by_css_selector(
+                _ = cls.__deepLDriver.find_element_by_css_selector(
                     "div.lmt__progress_popup.lmt__progress_popup--visible.lmt__progress_popup--visible_2")
             except sce.NoSuchElementException:
                 # ポップアップが無く、かつ[...]が無ければ翻訳完了として抜け出す
-                translated = cls.__webDriver.find_element_by_css_selector(
+                translated = cls.__deepLDriver.find_element_by_css_selector(
                     "textarea.lmt__textarea.lmt__target_textarea.lmt__textarea_base_style").get_property("value")
                 if not re.search(r"\[\.\.\.\]", translated):
                     break
@@ -132,7 +136,7 @@ class DeepLManager:
                 return "\n".join(messages)
 
         # 訳文の出力欄を取得し、訳文を取得
-        translated = cls.__webDriver.find_element_by_css_selector(
+        translated = cls.__deepLDriver.find_element_by_css_selector(
             "textarea.lmt__textarea.lmt__target_textarea.lmt__textarea_base_style").get_property("value")
 
         return translated
@@ -142,13 +146,13 @@ class DeepLManager:
         """
         ブラウザのウインドウを最小化する
         """
-        cls.__window_position = cls.__webDriver.get_window_position()
-        cls.__window_size = cls.__webDriver.get_window_size()
-        cls.__webDriver.minimize_window()
+        cls.__window_position = cls.__deepLDriver.get_window_position()
+        cls.__window_size = cls.__deepLDriver.get_window_size()
+        cls.__deepLDriver.minimize_window()
 
     @classmethod
     def RestoreWindow(cls):
-        cls.__webDriver.set_window_rect(
+        cls.__deepLDriver.set_window_rect(
             x=cls.__window_position["x"],
             y=cls.__window_position["y"],
             height=cls.__window_size["height"],
@@ -157,5 +161,5 @@ class DeepLManager:
 
     @classmethod
     def closeWindow(cls):
-        if not (cls.__webDriver is None):
-            cls.__webDriver.quit()
+        if not (cls.__deepLDriver is None):
+            cls.__deepLDriver.quit()

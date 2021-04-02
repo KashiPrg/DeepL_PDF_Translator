@@ -12,10 +12,8 @@ from settings import Settings
 def PDFTranslate(filename):
     textlines = PDFTextExtract(filename)
 
-    # 設定を引っ張ってくる
-    settings = Settings()
-    setting_ignore_start_condition = settings.settings["regular_expressions"]["start_lines"]["bool_enabled_overall"]
-    setting_ignore_end_condition = settings.settings["regular_expressions"]["end_lines"]["bool_enabled_overall"]
+    setting_ignore_start_condition = Settings.settings["regular_expressions"]["start_lines"]["bool_enabled_overall"]
+    setting_ignore_end_condition = Settings.settings["regular_expressions"]["end_lines"]["bool_enabled_overall"]
 
     if textlines is None:
         # ファイルがそもそもPDFではなかったとき
@@ -84,20 +82,18 @@ def PDFTextExtract(filename, force_ignore_start_condition=False, force_ignore_en
         翻訳開始条件に該当しないなどでテキストを抽出できなかった場合は空リスト
         それ以外の場合は抽出・加工したテキスト
     """
-    # 設定を引っ張ってくる
-    settings = Settings()
     # 出力をMarkdown式にするか
-    output_type_markdown = settings.settings["main_window"]["bool_output_type_markdown"]
+    output_type_markdown = Settings.settings["main_window"]["bool_output_type_markdown"]
     # 翻訳開始/終了条件を無いものとして扱うか
-    setting_ignore_start_condition = not settings.settings["regular_expressions"]["start_lines"]["bool_enabled_overall"]
-    setting_ignore_end_condition = not settings.settings["regular_expressions"]["end_lines"]["bool_enabled_overall"]
+    setting_ignore_start_condition = not Settings.settings["regular_expressions"]["start_lines"]["bool_enabled_overall"]
+    setting_ignore_end_condition = not Settings.settings["regular_expressions"]["end_lines"]["bool_enabled_overall"]
     # 各種条件に該当する行をtxtファイルとして出力するか
-    output_start_lines = settings.settings["regular_expressions"]["start_lines"]["bool_output_hit_lines"]
-    output_end_lines = settings.settings["regular_expressions"]["end_lines"]["bool_output_hit_lines"]
-    output_ignore_lines = settings.settings["regular_expressions"]["ignore_lines"]["bool_output_hit_lines"]
-    output_replace_source_lines = settings.settings["regular_expressions"]["replace_parts"]["standard"]["bool_output_hit_lines"]
-    output_markdown_replace_source_lines = settings.settings["regular_expressions"]["replace_parts"]["markdown"]["bool_output_hit_lines"]
-    output_header_lines = settings.settings["regular_expressions"]["header_lines"]["bool_output_hit_lines"]
+    output_start_lines = Settings.settings["regular_expressions"]["start_lines"]["bool_output_hit_lines"]
+    output_end_lines = Settings.settings["regular_expressions"]["end_lines"]["bool_output_hit_lines"]
+    output_ignore_lines = Settings.settings["regular_expressions"]["ignore_lines"]["bool_output_hit_lines"]
+    output_replace_source_lines = Settings.settings["regular_expressions"]["replace_parts"]["standard"]["bool_output_hit_lines"]
+    output_markdown_replace_source_lines = Settings.settings["regular_expressions"]["replace_parts"]["markdown"]["bool_output_hit_lines"]
+    output_header_lines = Settings.settings["regular_expressions"]["header_lines"]["bool_output_hit_lines"]
 
     # PDFからテキストを抽出
     textlines = []
@@ -236,11 +232,9 @@ def OrganizeTranslationUnits(filename, textlines, tl_unit_max_len=4800):
     Returns:
         2D-list of string: 翻訳単位のリスト
     """
-    # 設定を引っ張ってくる
-    settings = Settings()
-    output_chart_start_lines = settings.settings["regular_expressions"]["chart_start_lines"]["bool_output_hit_lines"]
-    output_return_lines = settings.settings["regular_expressions"]["return_lines"]["possibility"]["bool_output_hit_lines"]
-    output_return_ignore_lines = settings.settings["regular_expressions"]["return_lines"]["ignore"]["bool_output_hit_lines"]
+    output_chart_start_lines = Settings.settings["regular_expressions"]["chart_start_lines"]["bool_output_hit_lines"]
+    output_return_lines = Settings.settings["regular_expressions"]["return_lines"]["possibility"]["bool_output_hit_lines"]
+    output_return_ignore_lines = Settings.settings["regular_expressions"]["return_lines"]["ignore"]["bool_output_hit_lines"]
     # 出力用のディレクトリを作成
     Path("output").mkdir(exist_ok=True)
     # 条件に該当する行を出力するためのファイル群
@@ -362,18 +356,16 @@ def OrganizeTranslationUnits(filename, textlines, tl_unit_max_len=4800):
 
 
 def TranslateAndWrite(filename, tl_units):
-    # 設定を引っ張ってくる
-    settings = Settings()
     # 翻訳先の言語
-    lang = settings.TargetLanguage
+    lang = Settings.TargetLanguage
     # 翻訳文を一文ごとに改行するか
-    add_target_return = settings.settings["main_window"]["bool_add_target_return"]
+    add_target_return = Settings.settings["main_window"]["bool_add_target_return"]
     # 出力をMarkdown式にするか
-    output_type_markdown = settings.settings["main_window"]["bool_output_type_markdown"]
+    output_type_markdown = Settings.settings["main_window"]["bool_output_type_markdown"]
     # 原文を出力するか
-    output_source = settings.settings["main_window"]["bool_output_source"]
+    output_source = Settings.settings["main_window"]["bool_output_source"]
     # Markdown形式において、原文をコメントとして出力するか
-    source_as_comment = settings.settings["main_window"]["bool_source_as_comment"]
+    source_as_comment = Settings.settings["main_window"]["bool_source_as_comment"]
 
     # 出力用のディレクトリを作成
     Path("output").mkdir(exist_ok=True)
