@@ -17,6 +17,7 @@ from webdriver_manager.microsoft import EdgeChromiumDriverManager
 # DeepLでの翻訳を管理する
 class DeepLManager(metaclass=ClassProperty):
     __webDriver = None
+    __lastBrowser = None
     __window_position = None
     __window_size = None
 
@@ -30,20 +31,28 @@ class DeepLManager(metaclass=ClassProperty):
         Returns:
             WebDriver: DeepL用のウェブブラウザ
         """
-        # WebDriverが生きていなければ取る
+        # WebDriverが生きており
         if cls.__isWebDriverAlive():
-            return cls.__webDriver
+            # かつ、現在選んでいるブラウザと以前に開いたブラウザの種類が同じならば
+            # 以前に開いたブラウザを返す
+            if cls.__lastBrowser == Settings.web_browser:
+                return cls.__webDriver
+            else:
+                # ブラウザが異なるならば、以前のものは閉じる
+                cls.__webDriver.quit()
 
-        browser = Settings.web_browser
+        cls.__lastBrowser = Settings.web_browser
 
         try:
             # 使用するウェブブラウザの設定に沿ってWebDriverを取得
             # webdriver_managerのおかげで自動でダウンロードしてくれる
-            if browser == Browser.CHROME.value:
-                cls.__webDriver = webdriver.Chrome(ChromeDriverManager().install())
-            elif browser == Browser.EDGE.value:
+            if cls.__lastBrowser == Browser.CHROME.value:
+                options = webdriver.ChromeOptions()
+                options.add_experimental_option("excludeSwitches", ["enable-logging"])
+                cls.__webDriver = webdriver.Chrome(ChromeDriverManager().install(), options=options)
+            elif cls.__lastBrowser == Browser.EDGE.value:
                 cls.__webDriver = webdriver.Edge(EdgeChromiumDriverManager().install())
-            elif browser == Browser.FIREFOX.value:
+            elif cls.__lastBrowser == Browser.FIREFOX.value:
                 # Firefoxはなぜかexecutable_pathで指定しないとエラーが起きる
                 cls.__webDriver = webdriver.Firefox(executable_path=GeckoDriverManager().install())
             else:
@@ -51,7 +60,7 @@ class DeepLManager(metaclass=ClassProperty):
                 DeepLManager.invalidBrowser()
         except sce.WebDriverException:
             # この状況でこの例外が発生するなら、指定のウェブブラウザがインストールされていない
-            wx.LogError(browser + "がインストールされていません。\n\n" + browser + "をインストールするか、インストール済みの他の対応Webブラウザを選択してください。")
+            wx.LogError(cls.__lastBrowser + "がインストールされていません。\n\n" + cls.__lastBrowser + "をインストールするか、インストール済みの他の対応Webブラウザを選択してください。")
             exit(1)
 
         cls.__window_position = cls.__webDriver.get_window_position()
