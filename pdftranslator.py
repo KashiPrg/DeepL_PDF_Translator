@@ -12,8 +12,8 @@ from settings import Settings
 def PDFTranslate(filename):
     textlines = PDFTextExtract(filename)
 
-    setting_ignore_start_condition = Settings.settings["regular_expressions"]["start_lines"]["bool_enabled_overall"]
-    setting_ignore_end_condition = Settings.settings["regular_expressions"]["end_lines"]["bool_enabled_overall"]
+    setting_ignore_start_condition = not Settings.RegularExpressions.StartLines.enabled_overall
+    setting_ignore_end_condition = not Settings.RegularExpressions.EndLines.enabled_overall
 
     if textlines is None:
         # ファイルがそもそもPDFではなかったとき
@@ -83,17 +83,17 @@ def PDFTextExtract(filename, force_ignore_start_condition=False, force_ignore_en
         それ以外の場合は抽出・加工したテキスト
     """
     # 出力をMarkdown式にするか
-    output_type_markdown = Settings.settings["main_window"]["bool_output_type_markdown"]
+    output_type_markdown = Settings.output_type_markdown
     # 翻訳開始/終了条件を無いものとして扱うか
-    setting_ignore_start_condition = not Settings.settings["regular_expressions"]["start_lines"]["bool_enabled_overall"]
-    setting_ignore_end_condition = not Settings.settings["regular_expressions"]["end_lines"]["bool_enabled_overall"]
+    setting_ignore_start_condition = not Settings.RegularExpressions.StartLines.enabled_overall
+    setting_ignore_end_condition = not Settings.RegularExpressions.EndLines.enabled_overall
     # 各種条件に該当する行をtxtファイルとして出力するか
-    output_start_lines = Settings.settings["regular_expressions"]["start_lines"]["bool_output_hit_lines"]
-    output_end_lines = Settings.settings["regular_expressions"]["end_lines"]["bool_output_hit_lines"]
-    output_ignore_lines = Settings.settings["regular_expressions"]["ignore_lines"]["bool_output_hit_lines"]
-    output_replace_source_lines = Settings.settings["regular_expressions"]["replace_parts"]["standard"]["bool_output_hit_lines"]
-    output_markdown_replace_source_lines = Settings.settings["regular_expressions"]["replace_parts"]["markdown"]["bool_output_hit_lines"]
-    output_header_lines = Settings.settings["regular_expressions"]["header_lines"]["bool_output_hit_lines"]
+    output_start_lines = Settings.RegularExpressions.StartLines.output_hit_lines
+    output_end_lines = Settings.RegularExpressions.EndLines.output_hit_lines
+    output_ignore_lines = Settings.RegularExpressions.IgnoreLines.output_hit_lines
+    output_replace_source_lines = Settings.RegularExpressions.ReplaceParts.Standard.output_hit_lines
+    output_markdown_replace_source_lines = Settings.RegularExpressions.ReplaceParts.Markdown.output_hit_lines
+    output_header_lines = Settings.RegularExpressions.HeaderLines.output_hit_lines
 
     # PDFからテキストを抽出
     textlines = []
@@ -232,9 +232,9 @@ def OrganizeTranslationUnits(filename, textlines, tl_unit_max_len=4800):
     Returns:
         2D-list of string: 翻訳単位のリスト
     """
-    output_chart_start_lines = Settings.settings["regular_expressions"]["chart_start_lines"]["bool_output_hit_lines"]
-    output_return_lines = Settings.settings["regular_expressions"]["return_lines"]["possibility"]["bool_output_hit_lines"]
-    output_return_ignore_lines = Settings.settings["regular_expressions"]["return_lines"]["ignore"]["bool_output_hit_lines"]
+    output_chart_start_lines = Settings.RegularExpressions.ChartStartLines.output_hit_lines
+    output_return_lines = Settings.RegularExpressions.ReturnLines.Possibility.output_hit_lines
+    output_return_ignore_lines = Settings.RegularExpressions.ReturnLines.Ignore.output_hit_lines
     # 出力用のディレクトリを作成
     Path("output").mkdir(exist_ok=True)
     # 条件に該当する行を出力するためのファイル群
@@ -357,15 +357,15 @@ def OrganizeTranslationUnits(filename, textlines, tl_unit_max_len=4800):
 
 def TranslateAndWrite(filename, tl_units):
     # 翻訳先の言語
-    lang = Settings.TargetLanguage
+    lang = Settings.target_language_for_translate
     # 翻訳文を一文ごとに改行するか
-    add_target_return = Settings.settings["main_window"]["bool_add_target_return"]
+    add_target_return = Settings.add_target_return
     # 出力をMarkdown式にするか
-    output_type_markdown = Settings.settings["main_window"]["bool_output_type_markdown"]
+    output_type_markdown = Settings.output_type_markdown
     # 原文を出力するか
-    output_source = Settings.settings["main_window"]["bool_output_source"]
+    output_source = Settings.output_source
     # Markdown形式において、原文をコメントとして出力するか
-    source_as_comment = Settings.settings["main_window"]["bool_source_as_comment"]
+    source_as_comment = Settings.source_as_comment
 
     # 出力用のディレクトリを作成
     Path("output").mkdir(exist_ok=True)

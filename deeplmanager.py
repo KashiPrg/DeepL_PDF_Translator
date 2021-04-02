@@ -22,19 +22,19 @@ class DeepLManager(metaclass=ClassProperty):
 
     @classproperty
     def __deepLDriver(cls):
-        # WebDriverが取得されていなければ取る
-        if not (cls.__webDriver is None):
-            try:
-                # この操作で例外が発生するなら、
-                # 一度取得したが何らかの要因でそのWebDriverのセッションが終了した
-                # ということなので新たに取得する
-                cls.__webDriver.get_window_position()
-                # いずれでもなければ今もウェブブラウザが開いているのでそれを返す
-                return cls.__webDriver
-            except sce.WebDriverException:
-                pass
+        """
+        DeepL用のウェブブラウザ
 
-        browser = Settings.settings["main_window"]["str_web_browser"]
+        すでにウェブブラウザが駆動しているならそれを、未起動かブラウザが閉じられているなら新たなブラウザを返す
+
+        Returns:
+            WebDriver: DeepL用のウェブブラウザ
+        """
+        # WebDriverが生きていなければ取る
+        if cls.__isWebDriverAlive():
+            return cls.__webDriver
+
+        browser = Settings.web_browser
 
         try:
             # 使用するウェブブラウザの設定に沿ってWebDriverを取得
@@ -58,14 +58,38 @@ class DeepLManager(metaclass=ClassProperty):
         cls.__window_size = cls.__webDriver.get_window_size()
         return cls.__webDriver
 
+    @classmethod
+    def __isWebDriverAlive(cls):
+        """
+        WebDriverが生きているか確認する
+
+        逆に死んでいる状態とは、そもそも取得されていないか、取得された後にウインドウを閉じられた状態のこと
+
+        Returns:
+            bool: WebDriverが生きているか
+        """
+        if not (cls.__webDriver is None):
+            try:
+                # この操作で例外が発生するなら、
+                # 一度取得したが何らかの要因でそのWebDriverのセッションが終了したということ
+                cls.__webDriver.get_window_position()
+                # いずれでもなければ今もウェブブラウザが開いている
+                return True
+            except sce.WebDriverException:
+                pass
+
+        return False
+
     @staticmethod
     def invalidBrowser():
         wx.LogError("ブラウザの指定が無効な値です。")
         exit(1)
 
-    # DeepLのタブを開く
     @classmethod
     def openDeepLPage(cls):
+        """
+        DeepLのタブを開く
+        """
         # 今のタブがDeepLなら何もしない
         try:
             if search(r"^https://www.deepl.com/translator", cls.__deepLDriver.current_url):
@@ -90,6 +114,18 @@ class DeepLManager(metaclass=ClassProperty):
     # 渡された文を翻訳にかけ、訳文を返す
     @classmethod
     def translate(cls, text, lang="ja-JA", first_wait_secs=10, wait_secs_max=60):
+        """
+        DeepLで翻訳を行う
+
+        Args:
+            text (string): 原文
+            lang (str, optional): 翻訳先の言語 Settings.target_language_for_translateで取得可能
+            first_wait_secs (int, optional): 翻訳時に何秒待ってから翻訳完了の判定を行うか
+            wait_secs_max (int, optional): 翻訳が不可能であったと見なす時間
+
+        Returns:
+            string: 翻訳文
+        """
         # DeepLのページが開かれていなければ開く
         cls.RestoreWindow()
         cls.openDeepLPage()
@@ -131,6 +167,7 @@ class DeepLManager(metaclass=ClassProperty):
             else:
                 # 制限時間を過ぎたら失敗
                 # 段落と同じ数だけメッセージを生成
+                # 先頭は翻訳の失敗を伝えるメッセージで、残りは空白
                 num_pars = len(text.splitlines())
                 messages = ["(翻訳に" + str(wait_secs_max) + "秒以上を要するため失敗と見なしました)"] + ["" for _ in range(num_pars - 1)]
                 return "\n".join(messages)
@@ -152,6 +189,9 @@ class DeepLManager(metaclass=ClassProperty):
 
     @classmethod
     def RestoreWindow(cls):
+        """
+        ブラウザのウインドウをもとの大きさに戻す
+        """
         cls.__deepLDriver.set_window_rect(
             x=cls.__window_position["x"],
             y=cls.__window_position["y"],
@@ -161,5 +201,8 @@ class DeepLManager(metaclass=ClassProperty):
 
     @classmethod
     def closeWindow(cls):
-        if not (cls.__deepLDriver is None):
+        """
+        ブラウザが駆動しているならそのウインドウを閉じる
+        """
+        if cls.__isWebDriverAlive():
             cls.__deepLDriver.quit()

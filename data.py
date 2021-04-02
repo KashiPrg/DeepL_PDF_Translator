@@ -21,7 +21,7 @@ class ComboBox_ID(Enum):
 
 class CheckBox_ID(Enum):
     ADD_TARGET_RETURN = 3
-    RETURN_TYPE_MARKDOWN = 4
+    OUTPUT_TYPE_MARKDOWN = 4
     OUTPUT_SOURCE = 5
     SOURCE_AS_COMMENT = 6
 
@@ -92,14 +92,12 @@ language_dict = {
 
 
 default_settings = {
-    "main_window": {
-        "str_target_lang": Target_Lang.JAPANESE.value,
-        "str_web_browser": Browser.CHROME.value,
-        "bool_add_target_return": True,
-        "bool_output_type_markdown": True,
-        "bool_output_source": True,
-        "bool_source_as_comment": True
-    },
+    "str_target_lang": Target_Lang.JAPANESE.value,
+    "str_web_browser": Browser.CHROME.value,
+    "bool_add_target_return": True,
+    "bool_output_type_markdown": True,
+    "bool_output_source": True,
+    "bool_source_as_comment": True,
     "regular_expressions": {
         "start_lines": {
             "bool_enabled_overall": True,
@@ -449,7 +447,7 @@ default_settings = {
             ],
             "list_str_example": [
                 "1.2.3. Header",
-                "1.2.3 Header 末尾にピリオドが無いパターンはあまりうまく動作しない",
+                "1.2.3 Header",
                 "1. Introduction",
                 "2. RELATED WORKS",
                 "3 Overview",
@@ -461,7 +459,7 @@ default_settings = {
             ],
             "list_str_remarks": [
                 "見出し",
-                "数字の末尾にピリオドが無い見出し",
+                "数字の末尾にピリオドが無い見出し あまりうまく動作しない",
                 "はじめに",
                 "関連研究",
                 "概要",
