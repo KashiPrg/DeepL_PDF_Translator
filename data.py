@@ -14,18 +14,6 @@ class MainWindow_MenuBar_Menu(Enum):
     EDIT_HEADER_RE = 207
 
 
-class MainWindow_ComboBox_ID(Enum):
-    TARGET_LANG = 1
-    WEB_BROWSER = 2
-
-
-class MainWindow_CheckBox_ID(Enum):
-    ADD_TARGET_RETURN = 3
-    OUTPUT_TYPE_MARKDOWN = 4
-    OUTPUT_SOURCE = 5
-    SOURCE_AS_COMMENT = 6
-
-
 class Browser(Enum):
     CHROME = "Chrome"
     EDGE = "Edge"
@@ -94,6 +82,7 @@ language_dict = {
 default_settings = {
     "str_target_lang": Target_Lang.JAPANESE.value,
     "str_web_browser": Browser.CHROME.value,
+    "bool_minimize_translation_window": True,
     "bool_add_target_return": True,
     "bool_output_type_markdown": True,
     "bool_output_source": True,

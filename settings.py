@@ -130,6 +130,15 @@ class Settings(metaclass=ClassProperty):
     def web_browser(cls, str_web_browser):
         cls.__settings["str_web_browser"] = str_web_browser
 
+    # 翻訳ウインドウを自動で最小化するか
+    @classproperty
+    def minimize_translation_window(cls):
+        return cls.__settings["bool_minimize_translation_window"]
+
+    @minimize_translation_window.setter
+    def minimize_translation_window(cls, bool_minimize_translation_window):
+        cls.__settings["bool_minimize_translation_window"] = bool_minimize_translation_window
+
     # 翻訳文を一文ごとに改行するか
     @classproperty
     def add_target_return(cls):

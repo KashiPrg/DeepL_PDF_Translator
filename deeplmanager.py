@@ -80,6 +80,12 @@ class DeepLManager:
         # 新しいタブを開き、そのタブに移動
         self.__webDriver.execute_script("window.open('', '_blank');")
         self.__webDriver.switch_to.window(self.__webDriver.window_handles[-1])
+
+        # 自動的に最小化する設定なら、このタイミングで最小化する
+        # 最小化していても、↑のように新規タブ作成などでは復活してしまう
+        if Settings.minimize_translation_window:
+            self.MinimizeWindow()
+
         # DeepLに接続
         self.__webDriver.get("https://www.deepl.com/translator")
 
