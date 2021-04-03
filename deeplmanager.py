@@ -47,9 +47,7 @@ class DeepLManager(metaclass=ClassProperty):
             # 使用するウェブブラウザの設定に沿ってWebDriverを取得
             # webdriver_managerのおかげで自動でダウンロードしてくれる
             if cls.__lastBrowser == Browser.CHROME.value:
-                options = webdriver.ChromeOptions()
-                options.add_experimental_option("excludeSwitches", ["enable-logging"])
-                cls.__webDriver = webdriver.Chrome(ChromeDriverManager().install(), options=options)
+                cls.__webDriver = webdriver.Chrome(ChromeDriverManager().install())
             elif cls.__lastBrowser == Browser.EDGE.value:
                 cls.__webDriver = webdriver.Edge(EdgeChromiumDriverManager().install())
             elif cls.__lastBrowser == Browser.FIREFOX.value:

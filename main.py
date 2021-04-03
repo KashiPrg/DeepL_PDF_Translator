@@ -1,9 +1,114 @@
 import wx
 
 from data import Target_Lang, Browser, MainWindow_MenuBar_Menu, MainWindow_ComboBox_ID, MainWindow_CheckBox_ID
-from deeplmanager import DeepLManager
+# from deeplmanager import DeepLManager
+from pathlib import Path
 from pdftranslator import PDFTranslate
 from settings import Settings
+from threading import Thread
+from utils import ProgressBar
+
+
+class ProgressWindow(wx.Frame):
+    """
+    プログレスバーを擁するウインドウ
+
+    wx.ProgressDialogが機能しないため自作
+    """
+    def __init__(self, parent, title, text, buttontext="キャンセル", maxprogress=100, progress_on_title=False):
+        # タイトルの末尾に進捗状況を載せるか
+        self.__progress_on_title = progress_on_title
+        # 進捗の最大段階(最低1)
+        self.__maxprogress = max(1, maxprogress)
+        self.__progress = 0
+        progress = self.__GetProgressText()
+        self.__title = title
+        super().__init__(
+            parent,
+            title=self.__title + (progress if self.__progress_on_title else ""),
+            size=(450, 160),
+            style=wx.CAPTION
+        )
+        # ウインドウの背景
+        self.__background = wx.Panel(self)
+        # 翻訳中……などのテキスト
+        self.__text = wx.StaticText(self.__background, label=text, pos=(25, 18))
+        # 進捗を表す文字列
+        self.__progresstext = wx.StaticText(self.__background, label=progress, pos=(25, 45))
+        # 進捗を表すバー
+        self.__progressbar = ProgressBar(self.__background, (25, 63), (384, 12), self.__maxprogress)
+        # キャンセルボタン
+        self.__cancelbutton = wx.Button(self.__background, label=buttontext, pos=(329, 85), size=(80, 25))
+        self.__cancelbutton.SetToolTip("現在DeepLで実行中の翻訳を最後に、翻訳を中止します。")
+        self.__cancelbutton.Bind(wx.EVT_BUTTON, self.CancelButtonEvent)
+        # キャンセルボタンが押されたか
+        self.__canceled = False
+        self.Show()
+
+    def CancelButtonEvent(self, event):
+        """
+        キャンセルボタンが押された時のイベント
+        """
+        self.__progressbar.Freeze()
+        self.__canceled = True
+
+    def IsCanceled(self):
+        """
+        キャンセルボタンが押されたか
+        """
+        return self.__canceled
+
+    def ChangeMaxProgress(self, maxprogress):
+        # 新しい最大進捗を適用
+        self.__maxprogress = maxprogress
+        # 現在の進捗がはみ出ていたら戻す
+        self.__progress = max(0, min(self.__maxprogress, self.__progress))
+        # バー側も更新
+        self.__progressbar.ChangeMaxProgress(self.__maxprogress)
+        # 自身の表示も更新
+        self.UpdateProgress(self.__progress)
+
+    def UpdateProgress(self, progress):
+        """
+        進捗を更新する
+
+        Args:
+            progress (int): 進捗
+        """
+        # 0～最大の間に収める
+        self.__progress = max(0, min(self.__maxprogress, progress))
+        # 進捗テキストを更新
+        progress = self.__GetProgressText()
+        if self.__progress_on_title:
+            self.SetTitle(self.__title + progress)
+        self.__progresstext.SetLabelText(progress)
+        # プログレスバーを更新
+        self.__progressbar.Update(self.__progress)
+
+    def __GetProgressText(self):
+        return "(" + str(self.__progress) + "/" + str(self.__maxprogress) + ")"
+
+    def UpdateText(self, text):
+        """
+        ウインドウのテキストを更新する
+
+        Args:
+            text (string): テキスト
+        """
+        self.__text.SetLabelText(text)
+
+
+def Translation_Threading(main_window, filename):
+    fn = Path(filename).name
+    progress_window = ProgressWindow(
+        main_window,
+        fn + "を翻訳中",
+        fn + "を翻訳中…",
+        buttontext="翻訳中止",
+        progress_on_title=True)
+    th = Thread(target=PDFTranslate, args=(main_window, progress_window, filename))
+    th.setDaemon(True)  # アプリが終了したらこのスレッドも終了する
+    th.start()
 
 
 class MyFileDropTarget(wx.FileDropTarget):
@@ -15,7 +120,8 @@ class MyFileDropTarget(wx.FileDropTarget):
     def OnDropFiles(self, x, y, filenames):
 
         for fn in filenames:
-            PDFTranslate(fn)
+            Translation_Threading(self.window, fn)
+            # PDFTranslate(fn)
 
         return True
 
@@ -91,7 +197,6 @@ class WindowFrame(wx.Frame):
     # ウィンドウを閉じるときに発生するイベント
     def Window_Close_Event(self, event):
         Settings.SaveSettings()  # 変更した設定を保存する
-        DeepLManager.closeWindow()  # DeepL用のウェブブラウザを閉じる
         self.Destroy()  # イベントを発行すると自動では閉じなくなるので手動で閉じる
 
     # 各種チェックボックス選択時に発生するイベント
@@ -218,7 +323,7 @@ class WindowFrame(wx.Frame):
         # ファイルを選択させる
         dialog.ShowModal()
 
-        return PDFTranslate(dialog.GetPath())
+        return PDFTranslate(self, dialog.GetPath())
 
     class EditMenu(wx.Menu):
         """

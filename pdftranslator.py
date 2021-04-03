@@ -9,7 +9,7 @@ from res import RegularExpressions
 from settings import Settings
 
 
-def PDFTranslate(filename):
+def PDFTranslate(mainwindow, progress_window, filename):
     textlines = PDFTextExtract(filename)
 
     setting_ignore_start_condition = not Settings.RegularExpressions.StartLines.enabled_overall
@@ -62,7 +62,7 @@ def PDFTranslate(filename):
     tl_units = OrganizeTranslationUnits(filename, textlines)
 
     # 翻訳の実行と翻訳結果の書き込み
-    TranslateAndWrite(filename, tl_units)
+    TranslateAndWrite(mainwindow, progress_window, filename, tl_units)
 
     return True
 
@@ -355,7 +355,7 @@ def OrganizeTranslationUnits(filename, textlines, tl_unit_max_len=4800):
     return tl_units
 
 
-def TranslateAndWrite(filename, tl_units):
+def TranslateAndWrite(mainwindow, progress_window, filename, tl_units):
     # 翻訳先の言語
     lang = Settings.target_language_for_translate
     # 翻訳文を一文ごとに改行するか
@@ -372,8 +372,18 @@ def TranslateAndWrite(filename, tl_units):
     # 出力用ファイルのパス
     outputFilePath = Path("output/" + Path(filename).stem + ".txt")
 
+    # プログレスバーの長さを設定
+    progress_window.ChangeMaxProgress(len(tl_units))
+
     with open(outputFilePath, mode="w", encoding="utf-8") as f:
-        for paragraphs in tl_units:
+        for p, paragraphs in enumerate(tl_units):
+            # プログレスウインドウの中止ボタンが押されていた場合、途中で終了する
+            if progress_window.IsCanceled():
+                break
+            # プログレスバーを更新
+            progress_window.UpdateProgress(p + 1)
+
+            # 翻訳
             translated = DeepLManager.translate("\n".join(paragraphs), lang).splitlines()
 
             tl_processed = []
@@ -427,3 +437,4 @@ def TranslateAndWrite(filename, tl_units):
                     f.write(tl_processed[i] + ("\n" if tl_processed[i][-1] == "\n" else "\n\n"))
 
     DeepLManager.MinimizeWindow()
+    progress_window.Destroy()
