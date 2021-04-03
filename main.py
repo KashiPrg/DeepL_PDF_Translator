@@ -1,7 +1,6 @@
 import wx
 
 from data import Target_Lang, Browser, MainWindow_MenuBar_Menu, MainWindow_ComboBox_ID, MainWindow_CheckBox_ID
-# from deeplmanager import DeepLManager
 from pathlib import Path
 from pdftranslator import PDFTranslate
 from settings import Settings
@@ -50,6 +49,7 @@ class ProgressWindow(wx.Frame):
         キャンセルボタンが押された時のイベント
         """
         self.__progressbar.Freeze()
+        self.__cancelbutton.Disable()
         self.__canceled = True
 
     def IsCanceled(self):
@@ -119,9 +119,10 @@ class MyFileDropTarget(wx.FileDropTarget):
     # ウィンドウにファイルがドロップされた時
     def OnDropFiles(self, x, y, filenames):
 
+        # 別スレッドで処理させてメインウインドウのフリーズを避ける
+        # 複数ファイルの並列翻訳も可能
         for fn in filenames:
             Translation_Threading(self.window, fn)
-            # PDFTranslate(fn)
 
         return True
 
@@ -323,7 +324,9 @@ class WindowFrame(wx.Frame):
         # ファイルを選択させる
         dialog.ShowModal()
 
-        return PDFTranslate(self, dialog.GetPath())
+        # 別スレッドで処理させてメインウインドウのフリーズを避ける
+        # 複数ファイルの並列翻訳も可能
+        Translation_Threading(self, dialog.GetPath())
 
     class EditMenu(wx.Menu):
         """

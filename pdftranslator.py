@@ -375,6 +375,9 @@ def TranslateAndWrite(mainwindow, progress_window, filename, tl_units):
     # プログレスバーの長さを設定
     progress_window.ChangeMaxProgress(len(tl_units))
 
+    # DeepLを開く
+    deepLManager = DeepLManager()
+
     with open(outputFilePath, mode="w", encoding="utf-8") as f:
         for p, paragraphs in enumerate(tl_units):
             # プログレスウインドウの中止ボタンが押されていた場合、途中で終了する
@@ -384,7 +387,7 @@ def TranslateAndWrite(mainwindow, progress_window, filename, tl_units):
             progress_window.UpdateProgress(p + 1)
 
             # 翻訳
-            translated = DeepLManager.translate("\n".join(paragraphs), lang).splitlines()
+            translated = deepLManager.translate("\n".join(paragraphs), lang).splitlines()
 
             tl_processed = []
             for tl in translated:
@@ -436,5 +439,5 @@ def TranslateAndWrite(mainwindow, progress_window, filename, tl_units):
                         f.write(paragraphs[i] + "\n\n")
                     f.write(tl_processed[i] + ("\n" if tl_processed[i][-1] == "\n" else "\n\n"))
 
-    DeepLManager.MinimizeWindow()
+    deepLManager.closeWindow()
     progress_window.Destroy()
