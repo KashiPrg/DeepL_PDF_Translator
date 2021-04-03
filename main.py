@@ -156,7 +156,7 @@ class WindowFrame(wx.Frame):
 
         # ブラウザ選択のラベル
         browser_label = wx.StaticText(p, -1, "使用ウェブブラウザ")
-        sizer.Add(browser_label, flag=wx.ALIGN_LEFT | wx.LEFT, border=10)
+        sizer.Add(browser_label, flag=wx.ALIGN_LEFT | wx.TOP | wx.LEFT, border=10)
 
         # ブラウザ選択のコンボボックス
         self.browser_combo = WindowFrame.BrowserCombo(p, MainWindow_ComboBox_ID.WEB_BROWSER.value)
@@ -171,11 +171,11 @@ class WindowFrame(wx.Frame):
         self.chkbx_target_return.Bind(wx.EVT_CHECKBOX, self.CheckBox_TargetReturn_Event)
         sizer.Add(self.chkbx_target_return, flag=wx.ALIGN_LEFT | wx.TOP | wx.LEFT, border=10)
 
-        self.chkbx_return_markdown = wx.CheckBox(p, MainWindow_CheckBox_ID.OUTPUT_TYPE_MARKDOWN.value, "出力をMarkdown式にする")
-        self.chkbx_return_markdown.SetToolTip("見出しや改行をMarkdown式にします")
-        self.chkbx_return_markdown.SetValue(Settings.output_type_markdown)
-        self.chkbx_return_markdown.Bind(wx.EVT_CHECKBOX, self.CheckBox_ReturnMarkdown_Event)
-        sizer.Add(self.chkbx_return_markdown, flag=wx.ALIGN_LEFT | wx.LEFT, border=10)
+        self.chkbx_output_markdown = wx.CheckBox(p, MainWindow_CheckBox_ID.OUTPUT_TYPE_MARKDOWN.value, "出力をMarkdown式にする")
+        self.chkbx_output_markdown.SetToolTip("見出しや改行をMarkdown式にします")
+        self.chkbx_output_markdown.SetValue(Settings.output_type_markdown)
+        self.chkbx_output_markdown.Bind(wx.EVT_CHECKBOX, self.CheckBox_OutputMarkdown_Event)
+        sizer.Add(self.chkbx_output_markdown, flag=wx.ALIGN_LEFT | wx.LEFT, border=10)
 
         self.chkbx_output_source = wx.CheckBox(p, MainWindow_CheckBox_ID.OUTPUT_SOURCE.value, "原文を出力する")
         self.chkbx_output_source.SetToolTip("原文と翻訳文をセットで出力します。")
@@ -187,6 +187,7 @@ class WindowFrame(wx.Frame):
         self.chkbx_source_as_comment.SetToolTip("Markdown形式において、原文をコメントとして出力します。")
         self.chkbx_source_as_comment.SetValue(Settings.source_as_comment)
         self.chkbx_source_as_comment.Bind(wx.EVT_CHECKBOX, self.CheckBox_SourceAsComment_Event)
+        self.CheckBox_SourceAsComment_EnableCheck()     # この項目は前の2つに依存している
         sizer.Add(self.chkbx_source_as_comment, flag=wx.ALIGN_LEFT | wx.LEFT, border=10)
 
         p.SetSizer(sizer)
@@ -204,14 +205,27 @@ class WindowFrame(wx.Frame):
     def CheckBox_TargetReturn_Event(self, event):
         Settings.add_target_return = self.chkbx_target_return.GetValue()
 
-    def CheckBox_ReturnMarkdown_Event(self, event):
-        Settings.output_type_markdown = self.chkbx_return_markdown.GetValue()
+    def CheckBox_OutputMarkdown_Event(self, event):
+        Settings.output_type_markdown = self.chkbx_output_markdown.GetValue()
+        self.CheckBox_SourceAsComment_EnableCheck()
 
     def CheckBox_OutputSource_Event(self, event):
         Settings.output_source = self.chkbx_output_source.GetValue()
+        self.CheckBox_SourceAsComment_EnableCheck()
 
     def CheckBox_SourceAsComment_Event(self, event):
         Settings.source_as_comment = self.chkbx_source_as_comment.GetValue()
+
+    def CheckBox_SourceAsComment_EnableCheck(self):
+        """
+        Markdown出力と原文出力が両方とも有効ならば、原文コメント出力のチェックボックスを有効にする
+
+        そうでないならば無効にする
+        """
+        if self.chkbx_output_markdown.GetValue() and self.chkbx_output_source.GetValue():
+            self.chkbx_source_as_comment.Enable()
+        else:
+            self.chkbx_source_as_comment.Disable()
 
     def TargetLangCombo_Event(self, event):
         """
