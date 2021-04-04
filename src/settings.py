@@ -270,9 +270,25 @@ class Settings():
                 def _subsettings(self):
                     return settings()["regular_expressions"]["replace_parts"]["standard"]
 
+                @property
+                def target_list(self):
+                    return self._subsettings()["list_str_target"]
+
+                @target_list.setter
+                def target_list(self, list_str_target):
+                    self._subsettings()["list_str_target"] = list_str_target
+
             class Markdown(ConditionLines):
                 def _subsettings(self):
                     return settings()["regular_expressions"]["replace_parts"]["markdown"]
+
+                @property
+                def target_list(self):
+                    return self._subsettings()["list_str_target"]
+
+                @target_list.setter
+                def target_list(self, list_str_target):
+                    self._subsettings()["list_str_target"] = list_str_target
 
         class ChartStartLines(ConditionLines):
             def _subsettings(self):
@@ -290,3 +306,27 @@ class Settings():
         class HeaderLines(ConditionLines):
             def _subsettings(self):
                 return settings()["regular_expressions"]["header_lines"]
+
+            @property
+            def depth_count_list(self):
+                return self._subsettings()["list_str_depth_count"]
+
+            @depth_count_list.setter
+            def depth_count_list(self, list_str_depth_count):
+                self._subsettings()["list_str_depth_count"] = list_str_depth_count
+
+            @property
+            def target_remove_list(self):
+                return self._subsettings()["list_str_target_remove"]
+
+            @target_remove_list.setter
+            def target_remove_list(self, list_str_target_remove):
+                self._subsettings()["list_str_target_remove"] = list_str_target_remove
+
+            @property
+            def max_size_list(self):
+                return self._subsettings()["list_int_max_size"]
+
+            @max_size_list.setter
+            def max_size_list(self, list_int_max_size):
+                self._subsettings()["list_int_max_size"] = list_int_max_size

@@ -3,6 +3,7 @@ import wx
 from data import Target_Lang, Browser, MainWindow_MenuBar_Menu
 from pathlib import Path
 from pdftranslator import PDFTranslate
+from res import RegularExpressionsWindow
 from settings import Settings
 from threading import Thread
 from utils import ProgressBar
@@ -202,6 +203,7 @@ class WindowFrame(wx.Frame):
         dt = MyFileDropTarget(self)
         self.SetDropTarget(dt)
         self.Show()
+        self.__res_w = RegularExpressionsWindow(self)
 
     # ウィンドウを閉じるときに発生するイベント
     def Window_Close_Event(self, event):

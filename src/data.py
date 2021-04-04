@@ -384,8 +384,30 @@ default_settings = {
         "header_lines": {
             "bool_enabled_overall": True,
             "bool_output_hit_lines": False,
-            "list_bool_enabled": [],
-            "list_bool_ignore_case": [],
+            "list_bool_enabled": [
+                True,
+                True,
+                True,
+                True,
+                True,
+                True,
+                True,
+                True,
+                True,
+                True
+            ],
+            "list_bool_ignore_case": [
+                False,
+                False,
+                True,
+                True,
+                True,
+                True,
+                True,
+                True,
+                True,
+                True
+            ],
             "list_str_pattern": [
                 r"^\s*(\d+\s*\.\s*)+.{3,45}\s*$",
                 r"^\s*(\d+\s*\.\s*)*\d+\s*.{3,45}\s*$",
