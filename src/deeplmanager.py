@@ -16,7 +16,7 @@ from webdriver_manager.microsoft import EdgeChromiumDriverManager
 # DeepLでの翻訳を管理する
 class DeepLManager:
     def __init__(self):
-        browser_setting = Settings.web_browser
+        browser_setting = Settings().web_browser
         try:
             # 使用するウェブブラウザの設定に沿ってWebDriverを取得
             # webdriver_managerのおかげで自動でダウンロードしてくれる

@@ -1,9 +1,9 @@
 import json
 
+from abc import ABCMeta, abstractmethod
 from copy import deepcopy
 from data import default_settings, language_dict
 from pathlib import Path
-from utils import ClassProperty, classproperty
 
 
 settings_dict = None
@@ -64,14 +64,88 @@ def SettingComplement(settings, def_settings):
     return lack_of_settings
 
 
-class Settings(metaclass=ClassProperty):
+class ConditionLines(metaclass=ABCMeta):
+    """
+    各種正規表現のための抽象クラス
+    """
+    @abstractmethod
+    def _subsettings(self):
+        """
+        該当する正規表現の設定までツリーを下ったものを返すよう実装する
+
+        つまりエイリアシング
+
+        例： return settings()["regular_expressions"]["start_lines"]
+        """
+        pass
+
+    # この種類の正規表現の全体的なフラグ
+    @property
+    def enabled_overall(self):
+        return self._subsettings()["bool_enabled_overall"]
+
+    @enabled_overall.setter
+    def enabled_overall(self, bool_enabled_overall):
+        self._subsettings()["bool_enabled_overall"] = bool_enabled_overall
+
+    # この種類の正規表現にヒットした箇所を出力するか
+    @property
+    def output_hit_lines(self):
+        return self._subsettings()["bool_output_hit_lines"]
+
+    @output_hit_lines.setter
+    def output_hit_lines(self, bool_output_hit_lines):
+        self._subsettings()["bool_output_hit_lines"] = bool_output_hit_lines
+
+    @property
+    def enabled_list(self):
+        return self._subsettings()["list_bool_enabled"]
+
+    @enabled_list.setter
+    def enabled_list(self, list_bool_enabled):
+        self._subsettings()["list_bool_enabled"] = list_bool_enabled
+
+    @property
+    def ignorecase_list(self):
+        return self._subsettings()["list_bool_ignore_case"]
+
+    @ignorecase_list.setter
+    def ignorecase_list(self, list_bool_ignore_case):
+        self._subsettings()["list_bool_ignore_case"] = list_bool_ignore_case
+
+    @property
+    def pattern_list(self):
+        return self._subsettings()["list_str_pattern"]
+
+    @pattern_list.setter
+    def pattern_list(self, list_str_pattern):
+        self._subsettings()["list_str_pattern"] = list_str_pattern
+
+    @property
+    def example_list(self):
+        return self._subsettings()["list_str_example"]
+
+    @example_list.setter
+    def example_list(self, list_str_example):
+        self._subsettings()["list_str_example"] = list_str_example
+
+    @property
+    def remarks_list(self):
+        return self._subsettings()["list_str_remarks"]
+
+    @remarks_list.setter
+    def remarks_list(self, list_str_remarks):
+        self._subsettings()["list_str_remarks"] = list_str_remarks
+
+
+class Settings():
     """
     設定を扱うクラス
     """
 
     # エイリアシング
-    @classproperty
-    def __settings(cls):
+    @property
+    def __settings(self):
         return settings()
 
     @staticmethod
@@ -109,305 +183,110 @@ class Settings(metaclass=ClassProperty):
             settings_dict = json.load(f)
 
     # 翻訳先の言語
-    @classproperty
-    def target_language(cls):
-        return cls.__settings["str_target_lang"]
+    @property
+    def target_language(self):
+        return self.__settings["str_target_lang"]
 
     @target_language.setter
-    def target_language(cls, str_language):
-        cls.__settings["str_target_lang"] = str_language
+    def target_language(self, str_language):
+        self.__settings["str_target_lang"] = str_language
 
-    @classproperty
-    def target_language_for_translate(cls):
-        return language_dict[cls.__settings["str_target_lang"]]
+    @property
+    def target_language_for_translate(self):
+        return language_dict[self.__settings["str_target_lang"]]
 
     # 使用ウェブブラウザ
-    @classproperty
-    def web_browser(cls):
-        return cls.__settings["str_web_browser"]
+    @property
+    def web_browser(self):
+        return self.__settings["str_web_browser"]
 
     @web_browser.setter
-    def web_browser(cls, str_web_browser):
-        cls.__settings["str_web_browser"] = str_web_browser
+    def web_browser(self, str_web_browser):
+        self.__settings["str_web_browser"] = str_web_browser
 
     # 翻訳ウインドウを自動で最小化するか
-    @classproperty
-    def minimize_translation_window(cls):
-        return cls.__settings["bool_minimize_translation_window"]
+    @property
+    def minimize_translation_window(self):
+        return self.__settings["bool_minimize_translation_window"]
 
     @minimize_translation_window.setter
-    def minimize_translation_window(cls, bool_minimize_translation_window):
-        cls.__settings["bool_minimize_translation_window"] = bool_minimize_translation_window
+    def minimize_translation_window(self, bool_minimize_translation_window):
+        self.__settings["bool_minimize_translation_window"] = bool_minimize_translation_window
 
     # 翻訳文を一文ごとに改行するか
-    @classproperty
-    def add_target_return(cls):
-        return cls.__settings["bool_add_target_return"]
+    @property
+    def add_target_return(self):
+        return self.__settings["bool_add_target_return"]
 
     @add_target_return.setter
-    def add_target_return(cls, bool_add_target_return):
-        cls.__settings["bool_add_target_return"] = bool_add_target_return
+    def add_target_return(self, bool_add_target_return):
+        self.__settings["bool_add_target_return"] = bool_add_target_return
 
     # 出力をMarkdown式にするか
-    @classproperty
-    def output_type_markdown(cls):
-        return cls.__settings["bool_output_type_markdown"]
+    @property
+    def output_type_markdown(self):
+        return self.__settings["bool_output_type_markdown"]
 
     @output_type_markdown.setter
-    def output_type_markdown(cls, bool_output_type_markdown):
-        cls.__settings["bool_output_type_markdown"] = bool_output_type_markdown
+    def output_type_markdown(self, bool_output_type_markdown):
+        self.__settings["bool_output_type_markdown"] = bool_output_type_markdown
 
     # 原文を出力するか
-    @classproperty
-    def output_source(cls):
-        return cls.__settings["bool_output_source"]
+    @property
+    def output_source(self):
+        return self.__settings["bool_output_source"]
 
     @output_source.setter
-    def output_source(cls, bool_output_source):
-        cls.__settings["bool_output_source"] = bool_output_source
+    def output_source(self, bool_output_source):
+        self.__settings["bool_output_source"] = bool_output_source
 
     # Markdown形式において、原文をコメントとして出力するか
-    @classproperty
-    def source_as_comment(cls):
-        return cls.__settings["bool_source_as_comment"]
+    @property
+    def source_as_comment(self):
+        return self.__settings["bool_source_as_comment"]
 
     @source_as_comment.setter
-    def source_as_comment(cls, bool_source_as_comment):
-        cls.__settings["bool_source_as_comment"] = bool_source_as_comment
+    def source_as_comment(self, bool_source_as_comment):
+        self.__settings["bool_source_as_comment"] = bool_source_as_comment
 
-    class RegularExpressions(metaclass=ClassProperty):
+    class RegularExpressions:
         """
         正規表現まわりの設定を扱うクラス
         """
-        # エイリアシング
-        @classproperty
-        def __subsettings(cls):
-            return settings()["regular_expressions"]
-
-        class StartLines(metaclass=ClassProperty):
-            # エイリアシング
-            @classproperty
-            def __subsettings(cls):
+        class StartLines(ConditionLines):
+            def _subsettings(self):
                 return settings()["regular_expressions"]["start_lines"]
 
-            # この種類の正規表現の全体的なフラグ
-            @classproperty
-            def enabled_overall(cls):
-                return cls.__subsettings["bool_enabled_overall"]
-
-            @enabled_overall.setter
-            def enabled_overall(cls, bool_enabled_overall):
-                cls.__subsettings["bool_enabled_overall"] = bool_enabled_overall
-
-            # この種類の正規表現にヒットした箇所を出力するか
-            @classproperty
-            def output_hit_lines(cls):
-                return cls.__subsettings["bool_output_hit_lines"]
-
-            @output_hit_lines.setter
-            def output_hit_lines(cls, bool_output_hit_lines):
-                cls.__subsettings["bool_output_hit_lines"] = bool_output_hit_lines
-
-        class EndLines(metaclass=ClassProperty):
-            # エイリアシング
-            @classproperty
-            def __subsettings(cls):
+        class EndLines(ConditionLines):
+            def _subsettings(self):
                 return settings()["regular_expressions"]["end_lines"]
 
-            # この種類の正規表現の全体的なフラグ
-            @classproperty
-            def enabled_overall(cls):
-                return cls.__subsettings["bool_enabled_overall"]
-
-            @enabled_overall.setter
-            def enabled_overall(cls, bool_enabled_overall):
-                cls.__subsettings["bool_enabled_overall"] = bool_enabled_overall
-
-            # この種類の正規表現にヒットした箇所を出力するか
-            @classproperty
-            def output_hit_lines(cls):
-                return cls.__subsettings["bool_output_hit_lines"]
-
-            @output_hit_lines.setter
-            def output_hit_lines(cls, bool_output_hit_lines):
-                cls.__subsettings["bool_output_hit_lines"] = bool_output_hit_lines
-
-        class IgnoreLines(metaclass=ClassProperty):
-            # エイリアシング
-            @classproperty
-            def __subsettings(cls):
+        class IgnoreLines(ConditionLines):
+            def _subsettings(self):
                 return settings()["regular_expressions"]["ignore_lines"]
 
-            # この種類の正規表現の全体的なフラグ
-            @classproperty
-            def enabled_overall(cls):
-                return cls.__subsettings["bool_enabled_overall"]
-
-            @enabled_overall.setter
-            def enabled_overall(cls, bool_enabled_overall):
-                cls.__subsettings["bool_enabled_overall"] = bool_enabled_overall
-
-            # この種類の正規表現にヒットした箇所を出力するか
-            @classproperty
-            def output_hit_lines(cls):
-                return cls.__subsettings["bool_output_hit_lines"]
-
-            @output_hit_lines.setter
-            def output_hit_lines(cls, bool_output_hit_lines):
-                cls.__subsettings["bool_output_hit_lines"] = bool_output_hit_lines
-
-        class ReplaceParts(metaclass=ClassProperty):
-            # エイリアシング
-            @classproperty
-            def __subsettings(cls):
-                return settings()["regular_expressions"]["replace_parts"]
-
-            class Standard(metaclass=ClassProperty):
-                # エイリアシング
-                @classproperty
-                def __subsettings(cls):
+        class ReplaceParts:
+            class Standard(ConditionLines):
+                def _subsettings(self):
                     return settings()["regular_expressions"]["replace_parts"]["standard"]
 
-                # この種類の正規表現の全体的なフラグ
-                @classproperty
-                def enabled_overall(cls):
-                    return cls.__subsettings["bool_enabled_overall"]
-
-                @enabled_overall.setter
-                def enabled_overall(cls, bool_enabled_overall):
-                    cls.__subsettings["bool_enabled_overall"] = bool_enabled_overall
-
-                # この種類の正規表現にヒットした箇所を出力するか
-                @classproperty
-                def output_hit_lines(cls):
-                    return cls.__subsettings["bool_output_hit_lines"]
-
-                @output_hit_lines.setter
-                def output_hit_lines(cls, bool_output_hit_lines):
-                    cls.__subsettings["bool_output_hit_lines"] = bool_output_hit_lines
-
-            class Markdown(metaclass=ClassProperty):
-                # エイリアシング
-                @classproperty
-                def __subsettings(cls):
+            class Markdown(ConditionLines):
+                def _subsettings(self):
                     return settings()["regular_expressions"]["replace_parts"]["markdown"]
 
-                # この種類の正規表現の全体的なフラグ
-                @classproperty
-                def enabled_overall(cls):
-                    return cls.__subsettings["bool_enabled_overall"]
-
-                @enabled_overall.setter
-                def enabled_overall(cls, bool_enabled_overall):
-                    cls.__subsettings["bool_enabled_overall"] = bool_enabled_overall
-
-                # この種類の正規表現にヒットした箇所を出力するか
-                @classproperty
-                def output_hit_lines(cls):
-                    return cls.__subsettings["bool_output_hit_lines"]
-
-                @output_hit_lines.setter
-                def output_hit_lines(cls, bool_output_hit_lines):
-                    cls.__subsettings["bool_output_hit_lines"] = bool_output_hit_lines
-
-        class ChartStartLines(metaclass=ClassProperty):
-            # エイリアシング
-            @classproperty
-            def __subsettings(cls):
+        class ChartStartLines(ConditionLines):
+            def _subsettings(self):
                 return settings()["regular_expressions"]["chart_start_lines"]
 
-            # この種類の正規表現の全体的なフラグ
-            @classproperty
-            def enabled_overall(cls):
-                return cls.__subsettings["bool_enabled_overall"]
-
-            @enabled_overall.setter
-            def enabled_overall(cls, bool_enabled_overall):
-                cls.__subsettings["bool_enabled_overall"] = bool_enabled_overall
-
-            # この種類の正規表現にヒットした箇所を出力するか
-            @classproperty
-            def output_hit_lines(cls):
-                return cls.__subsettings["bool_output_hit_lines"]
-
-            @output_hit_lines.setter
-            def output_hit_lines(cls, bool_output_hit_lines):
-                cls.__subsettings["bool_output_hit_lines"] = bool_output_hit_lines
-
-        class ReturnLines(metaclass=ClassProperty):
-            # エイリアシング
-            @classproperty
-            def __subsettings(cls):
-                return settings()["regular_expressions"]["return_lines"]
-
-            class Possibility(metaclass=ClassProperty):
-                # エイリアシング
-                @classproperty
-                def __subsettings(cls):
+        class ReturnLines:
+            class Possibility(ConditionLines):
+                def _subsettings(self):
                     return settings()["regular_expressions"]["return_lines"]["possibility"]
 
-                # この種類の正規表現の全体的なフラグ
-                @classproperty
-                def enabled_overall(cls):
-                    return cls.__subsettings["bool_enabled_overall"]
-
-                @enabled_overall.setter
-                def enabled_overall(cls, bool_enabled_overall):
-                    cls.__subsettings["bool_enabled_overall"] = bool_enabled_overall
-
-                # この種類の正規表現にヒットした箇所を出力するか
-                @classproperty
-                def output_hit_lines(cls):
-                    return cls.__subsettings["bool_output_hit_lines"]
-
-                @output_hit_lines.setter
-                def output_hit_lines(cls, bool_output_hit_lines):
-                    cls.__subsettings["bool_output_hit_lines"] = bool_output_hit_lines
-
-            class Ignore(metaclass=ClassProperty):
-                # エイリアシング
-                @classproperty
-                def __subsettings(cls):
+            class Ignore(ConditionLines):
+                def _subsettings(self):
                     return settings()["regular_expressions"]["return_lines"]["ignore"]
 
-                # この種類の正規表現の全体的なフラグ
-                @classproperty
-                def enabled_overall(cls):
-                    return cls.__subsettings["bool_enabled_overall"]
-
-                @enabled_overall.setter
-                def enabled_overall(cls, bool_enabled_overall):
-                    cls.__subsettings["bool_enabled_overall"] = bool_enabled_overall
-
-                # この種類の正規表現にヒットした箇所を出力するか
-                @classproperty
-                def output_hit_lines(cls):
-                    return cls.__subsettings["bool_output_hit_lines"]
-
-                @output_hit_lines.setter
-                def output_hit_lines(cls, bool_output_hit_lines):
-                    cls.__subsettings["bool_output_hit_lines"] = bool_output_hit_lines
-
-        class HeaderLines(metaclass=ClassProperty):
-            # エイリアシング
-            @classproperty
-            def __subsettings(cls):
+        class HeaderLines(ConditionLines):
+            def _subsettings(self):
                 return settings()["regular_expressions"]["header_lines"]
-
-            # この種類の正規表現の全体的なフラグ
-            @classproperty
-            def enabled_overall(cls):
-                return cls.__subsettings["bool_enabled_overall"]
-
-            @enabled_overall.setter
-            def enabled_overall(cls, bool_enabled_overall):
-                cls.__subsettings["bool_enabled_overall"] = bool_enabled_overall
-
-            # この種類の正規表現にヒットした箇所を出力するか
-            @classproperty
-            def output_hit_lines(cls):
-                return cls.__subsettings["bool_output_hit_lines"]
-
-            @output_hit_lines.setter
-            def output_hit_lines(cls, bool_output_hit_lines):
-                cls.__subsettings["bool_output_hit_lines"] = bool_output_hit_lines
