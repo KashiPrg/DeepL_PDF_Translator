@@ -123,13 +123,13 @@ class RegularExpressionsWindow(wx.Frame):
                 info._tooltip = tooltip
                 info._kind = kind
                 info._mask = mask
-                info._format = 2
+                info._format = ULC.ULC_FORMAT_LEFT
                 return info
 
-            self._listbox.InsertColumnInfo(0, gen_column_header("", "全ての項目を一括で切り替えます。", 1))
+            self._listbox.InsertColumnInfo(0, gen_column_header("", "全ての項目を一括で切り替えます。", 1, mask | ULC.ULC_MASK_CHECK))
             self._listbox.SetColumnWidth(0, 25)     # 幅を設定
             self._listbox.InsertColumnInfo(1, gen_column_header("大小無視", "大文字と小文字を区別するかを管理します。\nこのヘッダのチェックボックスで全ての項目を一括で切り替えられます。", 1))
-            self._listbox.SetColumnWidth(1, 75)
+            self._listbox.SetColumnWidth(1, 60)
             self._listbox.InsertColumnInfo(2, gen_column_header("正規表現パターン", "このパターンに適合する行に、対応する操作が行われます。"))
             self._listbox.SetColumnWidth(2, 225)
             self._listbox.InsertColumnInfo(3, gen_column_header("例", "正規表現パターンに適合する文字列の例です。"))
@@ -149,17 +149,10 @@ class RegularExpressionsWindow(wx.Frame):
                 self._listbox.InsertStringItem(i, "")
                 self._listbox.SetItemBackgroundColour(i, color)
 
-                # チェックボックスの用意
-                chkbx_enable = RegularExpressionsWindow.ListCheckBox(self._listbox, i)
-                chkbx_ignorecase = RegularExpressionsWindow.ListCheckBox(self._listbox, i)
-                chkbx_enable.SetBackgroundColour(color)
-                chkbx_ignorecase.SetBackgroundColour(color)
-                self._chkbx_enable_list.append(chkbx_enable)
-                self._chkbx_ignorecase_list.append(chkbx_ignorecase)
-
                 # 行の各列へのアイテムの追加
-                self._listbox.SetItemWindow(i, 0, chkbx_enable)
-                self._listbox.SetItemWindow(i, 1, chkbx_ignorecase)
+                # どうやらヘッダとセルのアラインメントを別々で設定することはできないらしい
+                self._listbox.SetStringItem(i, 0, "", it_kind=1)
+                self._listbox.SetStringItem(i, 1, "", it_kind=1)
                 self._listbox.SetStringItem(i, 2, self._Settings.pattern_list[i])
                 self._listbox.SetStringItem(i, 3, self._Settings.example_list[i])
                 self._listbox.SetStringItem(i, 4, self._Settings.remarks_list[i])
