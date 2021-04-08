@@ -3,6 +3,7 @@ import wx
 from data import Target_Lang, Browser, MainWindow_MenuBar_Menu
 from pathlib import Path
 from pdftranslator import PDFTranslate
+from re import search
 from res import RegularExpressionsWindow
 from settings import Settings
 from threading import Thread
@@ -342,13 +343,16 @@ class WindowFrame(wx.Frame):
     def OpenAndTranslatePDF(self):
         # ファイル選択ダイアログを作成
         dialog = wx.FileDialog(
-            None,
+            self,
             message="翻訳対象のPDFファイルを選択してください",
             wildcard="PDF file(*.pdf) | *.pdf",
             style=wx.FD_OPEN)
 
         # ファイルを選択させる
         dialog.ShowModal()
+
+        if search(r"^\s*$", dialog.GetPath()):
+            return
 
         # 別スレッドで処理させてメインウインドウのフリーズを避ける
         # 複数ファイルの並列翻訳も可能

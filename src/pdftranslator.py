@@ -10,7 +10,12 @@ from settings import Settings
 
 
 def PDFTranslate(mainwindow, progress_window, filename):
-    textlines = PDFTextExtract(filename)
+    try:
+        textlines = PDFTextExtract(filename)
+    except FileNotFoundError:
+        wx.LogMessage("指定のファイルが見つかりませんでした。")
+        progress_window.Destroy()
+        return False
 
     setting_ignore_start_condition = not Settings.RegularExpressions.StartLines().enabled_overall
     setting_ignore_end_condition = not Settings.RegularExpressions.EndLines().enabled_overall
