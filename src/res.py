@@ -1,7 +1,9 @@
 import wx
 
+from data import res_introduction
 from settings import Settings
 from wx.lib.agw import ultimatelistctrl as ULC
+from wx.lib.scrolledpanel import ScrolledPanel
 
 
 class RegularExpressionsWindow(wx.Frame):
@@ -16,12 +18,38 @@ class RegularExpressionsWindow(wx.Frame):
         self.__pages = wx.Notebook(self)
 
         # タブを追加
-        self.__pages.InsertPage(0, RegularExpressionsWindow.StartLinesPage(self.__pages), "翻訳開始条件")
-        self.__pages.InsertPage(1, RegularExpressionsWindow.EndLinesPage(self.__pages), "翻訳終了条件")
-        self.__pages.InsertPage(2, RegularExpressionsWindow.IgnoreLinesPage(self.__pages), "無視条件")
-        self.__pages.InsertPage(3, RegularExpressionsWindow.ChartStartLinesPage(self.__pages), "図表開始条件")
+        self.__pages.InsertPage(0, RegularExpressionsWindow.IntroductionPage(self.__pages), "概要説明")
+        self.__pages.InsertPage(1, RegularExpressionsWindow.StartLinesPage(self.__pages), "抽出開始条件")
+        self.__pages.InsertPage(2, RegularExpressionsWindow.EndLinesPage(self.__pages), "抽出終了条件")
+        self.__pages.InsertPage(3, RegularExpressionsWindow.IgnoreLinesPage(self.__pages), "無視条件")
+        self.__pages.InsertPage(4, RegularExpressionsWindow.ChartStartLinesPage(self.__pages), "図表開始条件")
 
         self.Show()
+
+    class IntroductionPage(wx.Panel):
+        """
+        概要説明のページ
+        """
+        def __init__(self, parent):
+            super().__init__(parent)
+            # ウインドウ全体のSizer
+            sizer = wx.BoxSizer(wx.VERTICAL)
+            self.SetSizer(sizer)
+
+            # スクロールするパネルの設定
+            self.__scroll_panel = ScrolledPanel(self)
+            self.__scroll_panel.SetupScrolling()
+            panel_sizer = wx.BoxSizer(wx.VERTICAL)     # スクロールするパネル内部のSizer
+            self.__scroll_panel.SetSizer(panel_sizer)
+            sizer.Add(self.__scroll_panel, proportion=1, flag=wx.EXPAND)
+
+            # 説明用テキスト
+            page_sizer = wx.BoxSizer(wx.VERTICAL)
+            self.__text = wx.StaticText(self.__scroll_panel, id=wx.ID_ANY, label=res_introduction)
+            page_sizer.Add(self.__text, flag=wx.ALIGN_LEFT)
+
+            # ページの上下左右に余白を設ける
+            panel_sizer.Add(page_sizer, proportion=1, flag=wx.EXPAND | wx.ALL, border=5)
 
     class RE_SubPage(wx.Panel):
         """
@@ -174,21 +202,21 @@ class RegularExpressionsWindow(wx.Frame):
 
     class EndLinesPage(RE_SubPage):
         """
-        開始条件を扱うページ
+        終了条件を扱うページ
         """
         def __init__(self, parent):
             super().__init__(parent, Settings.RegularExpressions.EndLines())
 
     class IgnoreLinesPage(RE_SubPage):
         """
-        開始条件を扱うページ
+        無視条件を扱うページ
         """
         def __init__(self, parent):
             super().__init__(parent, Settings.RegularExpressions.IgnoreLines())
 
     class ChartStartLinesPage(RE_SubPage):
         """
-        開始条件を扱うページ
+        図表開始条件を扱うページ
         """
         def __init__(self, parent):
             super().__init__(parent, Settings.RegularExpressions.ChartStartLines())
