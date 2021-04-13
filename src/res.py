@@ -230,15 +230,19 @@ class RegularExpressionsWindow(wx.Frame):
             splitter1.SetForegroundColour(splitter_color)
             self._lb_menusizer.Add(splitter1, flag=wx.ALIGN_CENTER | wx.TOP | wx.BOTTOM, border=5)
             self._top_button = wx.Button(self, label="最上位へ")    # 移動ボタン類
+            self._top_button.Bind(wx.EVT_BUTTON, self._Button_Top_Event)
             self._top_button.Disable()
             self._lb_menusizer.Add(self._top_button)
             self._up_button = wx.Button(self, label="一つ上へ")
+            self._up_button.Bind(wx.EVT_BUTTON, self._Button_Up_Event)
             self._up_button.Disable()
             self._lb_menusizer.Add(self._up_button, flag=wx.TOP, border=10)
             self._down_button = wx.Button(self, label="一つ下へ")
+            self._down_button.Bind(wx.EVT_BUTTON, self._Button_Down_Event)
             self._down_button.Disable()
             self._lb_menusizer.Add(self._down_button, flag=wx.TOP, border=3)
             self._bottom_button = wx.Button(self, label="最下位へ")
+            self._bottom_button.Bind(wx.EVT_BUTTON, self._Button_Bottom_Event)
             self._bottom_button.Disable()
             self._lb_menusizer.Add(self._bottom_button, flag=wx.TOP, border=10)
             splitter2 = wx.StaticText(self, label=splitter_label)
@@ -353,6 +357,50 @@ class RegularExpressionsWindow(wx.Frame):
             # 何かが選択されているなら削除を実行
             if index >= 0:
                 self.Add_Operation(self._ListBox_RemoveItem, index)
+
+        def _Button_Top_Event(self, event):
+            """
+            「最上位へ」のボタンを押した時の処理
+            """
+            # 選択された項目のインデックスを取得
+            index = self._ListBox_SelectedItemIndex()
+
+            # 何かが選択されているなら移動
+            if index >= 0:
+                self.Add_Operation(self._ListBox_MoveItem, [index, 0])
+
+        def _Button_Up_Event(self, event):
+            """
+            「一つ上へ」のボタンを押した時の処理
+            """
+            # 選択された項目のインデックスを取得
+            index = self._ListBox_SelectedItemIndex()
+
+            # 何かが選択されているなら移動
+            if index >= 0:
+                self.Add_Operation(self._ListBox_MoveItem, [index, max(index - 1, 0)])
+
+        def _Button_Down_Event(self, event):
+            """
+            「一つ下へ」のボタンを押した時の処理
+            """
+            # 選択された項目のインデックスを取得
+            index = self._ListBox_SelectedItemIndex()
+
+            # 何かが選択されているなら移動
+            if index >= 0:
+                self.Add_Operation(self._ListBox_MoveItem, [index, min(index + 1, len(self._enabled_list_edited) - 1)])
+
+        def _Button_Bottom_Event(self, event):
+            """
+            「最下位へ」のボタンを押した時の処理
+            """
+            # 選択された項目のインデックスを取得
+            index = self._ListBox_SelectedItemIndex()
+
+            # 何かが選択されているなら移動
+            if index >= 0:
+                self.Add_Operation(self._ListBox_MoveItem, [index, len(self._enabled_list_edited) - 1])
 
         def _Button_Undo_Event(self, event):
             """
@@ -593,8 +641,10 @@ class RegularExpressionsWindow(wx.Frame):
                 if self._operation_list[history_index] == self._ListBox_EditItem:
                     self._listbox.Select(self._operation_args[history_index][0])
                 # 最後の操作が削除なら、削除した位置に来た項目を選択し直す
-                if self._operation_list[history_index] == self._ListBox_RemoveItem:
+                elif self._operation_list[history_index] == self._ListBox_RemoveItem:
                     self._listbox.Select(self._operation_args[history_index])
+                elif self._operation_list[history_index] == self._ListBox_MoveItem:
+                    self._listbox.Select(self._operation_args[history_index][1])
 
         def _Set_EnabledOverall(self, state):
             """
