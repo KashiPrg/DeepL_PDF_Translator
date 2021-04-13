@@ -27,6 +27,9 @@ class RegularExpressionsWindow(wx.Frame):
             title="正規表現の編集",
             size=(960, 540)
         )
+        self.__parent = parent  # 親の保持
+
+        self.Bind(wx.EVT_CLOSE, self.__Window_Close_Event)
         # 背景パネル
         panel = wx.Panel(self)
 
@@ -69,6 +72,30 @@ class RegularExpressionsWindow(wx.Frame):
 
         self.Show()
 
+    def __Window_Close_Event(self, event):
+        """
+        ウインドウを閉じる時の処理
+        """
+        if not self.__TabIsEdited():
+            # タブが一つも編集されていなければそのまま閉じる
+            self.__parent.res_window_destroyed = True
+            self.Destroy()
+
+        else:
+            # 編集されていれば、そのまま閉じるかどうか聞く
+            dialog = wx.MessageDialog(self, "変更内容を保存しますか？", "正規表現の編集", wx.CENTRE | wx.YES_NO | wx.CANCEL)
+            dialog.SetYesNoCancelLabels("保存する", "保存しない", "キャンセル")     # ボタンラベルの変更
+
+            choice = dialog.ShowModal()     # 選択を取得
+            if choice == wx.ID_YES:
+                # 保存して閉じる(OKボタンと同等の処理)
+                self.__Button_OK_Event(None)
+            elif choice == wx.ID_NO:
+                # 何もせずに閉じる
+                self.__parent.res_window_destroyed = True
+                self.Destroy()
+            # それ以外の場合(キャンセルボタンを押した場合)は何もしないしウインドウも閉じない
+
     def __ApplyAndSaveSettings(self):
         """
         各タブにおける設定を反映する
@@ -83,6 +110,7 @@ class RegularExpressionsWindow(wx.Frame):
         OKボタンを押した時の処理
         """
         self.__ApplyAndSaveSettings()
+        self.__parent.res_window_destroyed = True
         self.Destroy()
 
     def __Button_Apply_Event(self, event):

@@ -201,10 +201,12 @@ class WindowFrame(wx.Frame):
 
         p.SetSizer(sizer)
 
+        self.__res_window = None
+        self.res_window_destroyed = True
+
         dt = MyFileDropTarget(self)
         self.SetDropTarget(dt)
         self.Show()
-        self.__res_w = RegularExpressionsWindow(self)
 
     # ウィンドウを閉じるときに発生するイベント
     def Window_Close_Event(self, event):
@@ -329,8 +331,16 @@ class WindowFrame(wx.Frame):
         選ばれたメニューに応じて操作を行う
         """
         event_id = event.GetId()
-        if event_id == MainWindow_MenuBar_Menu.OPEN_PDF_FILE.value:
+        if event_id == MainWindow_MenuBar_Menu.OPEN_PDF_FILE.value:     # 翻訳対象のPDFファイルを開く
             self.OpenAndTranslatePDF()
+        elif event_id == MainWindow_MenuBar_Menu.EDIT_RE.value:     # 正規表現の編集
+            if self.res_window_destroyed:
+                # 正規表現ウインドウが閉じられている(あるいは一度も開かれていない)なら開く
+                self.__res_window = RegularExpressionsWindow(self)
+                self.res_window_destroyed = False
+            else:
+                # すでに開かれているならフォーカスする
+                self.__res_window.Raise()
 
     class FileMenu(wx.Menu):
         """
@@ -364,10 +374,12 @@ class WindowFrame(wx.Frame):
         """
         def __init__(self):
             super().__init__()
-            self.Append(MainWindow_MenuBar_Menu.EDIT_START_RE.value, "翻訳開始条件の正規表現を編集")
-            self.Append(MainWindow_MenuBar_Menu.EDIT_END_RE.value, "翻訳終了条件の正規表現を編集")
-            self.start_ignore = self.AppendCheckItem(MainWindow_MenuBar_Menu.CHECKBOX_IGNORE_START_CONDITION.value, "翻訳開始条件を無視して最初から翻訳する")
-            self.end_ignore = self.AppendCheckItem(MainWindow_MenuBar_Menu.CHECKBOX_IGNORE_END_CONDITION.value, "翻訳終了条件を無視して最後まで翻訳する")
+            self.Append(MainWindow_MenuBar_Menu.EDIT_RE.value, "正規表現の編集")
+            self.AppendSeparator()
+            self.Append(MainWindow_MenuBar_Menu.EDIT_START_RE.value, "抽出開始条件の正規表現を編集")
+            self.Append(MainWindow_MenuBar_Menu.EDIT_END_RE.value, "抽出終了条件の正規表現を編集")
+            self.start_ignore = self.AppendCheckItem(MainWindow_MenuBar_Menu.CHECKBOX_IGNORE_START_CONDITION.value, "抽出開始条件を無視して最初から翻訳する")
+            self.end_ignore = self.AppendCheckItem(MainWindow_MenuBar_Menu.CHECKBOX_IGNORE_END_CONDITION.value, "抽出終了条件を無視して最後まで翻訳する")
             self.AppendSeparator()
             self.Append(MainWindow_MenuBar_Menu.EDIT_IGNORE_RE.value, "無視条件の正規表現を編集")
             self.Append(MainWindow_MenuBar_Menu.EDIT_RETURN_RE.value, "段落終了条件の正規表現を編集")

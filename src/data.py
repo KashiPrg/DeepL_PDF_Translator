@@ -3,6 +3,7 @@ from enum import Enum
 
 class MainWindow_MenuBar_Menu(Enum):
     OPEN_PDF_FILE = 101
+    EDIT_RE = 200
     EDIT_START_RE = 201
     EDIT_END_RE = 202
     CHECKBOX_IGNORE_START_CONDITION = 20101
