@@ -219,17 +219,27 @@ class RegularExpressionsWindow(wx.Frame):
             self._add_button.Bind(wx.EVT_BUTTON, self._Button_Add_Event)
             self._lb_menusizer.Add(self._add_button)
             self._edit_button = wx.Button(self, label="編集")   # 編集ボタン
+            self._edit_button.Bind(wx.EVT_BUTTON, self._Button_Edit_Event)
+            self._edit_button.Disable()
             self._lb_menusizer.Add(self._edit_button, flag=wx.TOP, border=3)
+            self._delete_button = wx.Button(self, label="削除")
+            self._delete_button.Bind(wx.EVT_BUTTON, self._Button_Delete_Event)
+            self._delete_button.Disable()
+            self._lb_menusizer.Add(self._delete_button, flag=wx.TOP, border=10)
             splitter1 = wx.StaticText(self, label=splitter_label)
             splitter1.SetForegroundColour(splitter_color)
             self._lb_menusizer.Add(splitter1, flag=wx.ALIGN_CENTER | wx.TOP | wx.BOTTOM, border=5)
             self._top_button = wx.Button(self, label="最上位へ")    # 移動ボタン類
+            self._top_button.Disable()
             self._lb_menusizer.Add(self._top_button)
             self._up_button = wx.Button(self, label="一つ上へ")
+            self._up_button.Disable()
             self._lb_menusizer.Add(self._up_button, flag=wx.TOP, border=10)
             self._down_button = wx.Button(self, label="一つ下へ")
+            self._down_button.Disable()
             self._lb_menusizer.Add(self._down_button, flag=wx.TOP, border=3)
             self._bottom_button = wx.Button(self, label="最下位へ")
+            self._bottom_button.Disable()
             self._lb_menusizer.Add(self._bottom_button, flag=wx.TOP, border=10)
             splitter2 = wx.StaticText(self, label=splitter_label)
             splitter2.SetForegroundColour(splitter_color)
@@ -248,6 +258,29 @@ class RegularExpressionsWindow(wx.Frame):
             self.SetSizer(self._sizer)
             self.Refresh()
 
+        def _ListBox_ItemSelected_Event(self, event):
+            """
+            リストボックスの項目が選択された時の処理
+            """
+            # 各種ボタンをアクティベート
+            self._edit_button.Enable()
+            self._delete_button.Enable()
+            self._top_button.Enable()
+            self._up_button.Enable()
+            self._down_button.Enable()
+            self._bottom_button.Enable()
+
+        def _ListBox_ItemDeselected_Event(self, event):
+            """
+            リストボックスの項目の選択が解除された時の処理
+            """
+            self._edit_button.Disable()
+            self._delete_button.Disable()
+            self._top_button.Disable()
+            self._up_button.Disable()
+            self._down_button.Disable()
+            self._bottom_button.Disable()
+
         def _CheckBox_EnabledOverall_Event(self, event):
             """
             全体の有効化のチェックボックスを押した時の処理
@@ -257,7 +290,7 @@ class RegularExpressionsWindow(wx.Frame):
             self._enabled_overall_edited = enabled_overall
 
             # 履歴に操作を追加
-            self._Add_Operation(self._Set_EnabledOverall, enabled_overall)
+            self.Add_Operation(self._Set_EnabledOverall, enabled_overall)
 
         def _CheckBox_Enable_Event(self, event):
             """
@@ -269,7 +302,7 @@ class RegularExpressionsWindow(wx.Frame):
             self._enabled_list_edited[id] = enabled
 
             # 履歴に操作を追加
-            self._Add_Operation(self._ListBox_SwitchEnabled, [id, enabled])
+            self.Add_Operation(self._ListBox_SwitchEnabled, [id, enabled])
 
         def _CheckBox_IgnoreCase_Event(self, event):
             """
@@ -281,13 +314,45 @@ class RegularExpressionsWindow(wx.Frame):
             self._ignorecase_list_edited[id] = enabled
 
             # 履歴に操作を追加
-            self._Add_Operation(self._ListBox_SwitchIgnoreCase, [id, enabled])
+            self.Add_Operation(self._ListBox_SwitchIgnoreCase, [id, enabled])
 
         def _Button_Add_Event(self, event):
             """
             追加ボタンを押した時の処理
             """
-            self._Add_Operation(self._ListBox_AddItem, [-1, True, False, "test", "test", "test"])
+            RegularExpressionsWindow.RE_SubPage.InputItemInfoWindow(self._window, "項目の追加", self, self._ListBox_AddItem, -1)
+
+        def _Button_Edit_Event(self, event):
+            """
+            編集ボタンを押した時の処理
+            """
+            # 選択された項目のインデックスを取得
+            index = self._ListBox_SelectedItemIndex()
+
+            # 何かが選択されているなら編集を実行
+            if index >= 0:
+                RegularExpressionsWindow.RE_SubPage.InputItemInfoWindow(
+                    self._window,
+                    "項目の編集",
+                    self,
+                    self._ListBox_EditItem,
+                    index,
+                    self._enabled_list_edited[index],
+                    self._ignorecase_list_edited[index],
+                    self._pattern_list_edited[index],
+                    self._example_list_edited[index],
+                    self._remarks_list_edited[index])
+
+        def _Button_Delete_Event(self, event):
+            """
+            削除ボタンを押した時の処理
+            """
+            # 選択された項目のインデックスを取得
+            index = self._ListBox_SelectedItemIndex()
+
+            # 何かが選択されているなら削除を実行
+            if index >= 0:
+                self.Add_Operation(self._ListBox_RemoveItem, index)
 
         def _Button_Undo_Event(self, event):
             """
@@ -337,11 +402,13 @@ class RegularExpressionsWindow(wx.Frame):
             リストボックスを用意する
             """
             # ULC.ULC_HAS_VARIABLE_ROW_HEIGHT と ULC.ULC_REPORT を兼ね備えていないとチェックボックスなどのウィジェットを追加できない
-            self._listbox = ULC.UltimateListCtrl(self, agwStyle=ULC.ULC_HAS_VARIABLE_ROW_HEIGHT | ULC.ULC_REPORT | ULC.ULC_VRULES)
+            self._listbox = ULC.UltimateListCtrl(self, agwStyle=ULC.ULC_HAS_VARIABLE_ROW_HEIGHT | ULC.ULC_REPORT | ULC.ULC_VRULES | ULC.ULC_SINGLE_SEL)
             self._ListBox_PrepareColumns()  # 列を追加
             self._chkbx_enable_list = []        # 有効化のチェックボックスのリスト
             self._chkbx_ignorecase_list = []    # 大文字小文字無視のチェックボックスのリスト
             self._ListBox_PrepareItems()    # 項目を追加
+            self._listbox.Bind(wx.EVT_LIST_ITEM_SELECTED, self._ListBox_ItemSelected_Event)     # 項目選択時の処理をバインド
+            self._listbox.Bind(wx.EVT_LIST_ITEM_DESELECTED, self._ListBox_ItemDeselected_Event)     # 項目選択解除時の処理をバインド
             self._lb_boxsizer.Add(self._listbox, proportion=1, flag=wx.EXPAND)
 
         def _Refresh_ListBox(self):
@@ -388,7 +455,7 @@ class RegularExpressionsWindow(wx.Frame):
             self._listbox.SetColumnWidth(1, 60)
             self._listbox.InsertColumnInfo(2, gen_column_header("正規表現パターン", "このパターンに適合する行に、対応する操作が行われます。"))
             self._listbox.SetColumnWidth(2, 225)
-            self._listbox.InsertColumnInfo(3, gen_column_header("例", "正規表現パターンに適合する文字列の例です。"))
+            self._listbox.InsertColumnInfo(3, gen_column_header("マッチング例", "正規表現パターンに適合する文字列の例です。"))
             self._listbox.SetColumnWidth(3, 250)
             self._listbox.InsertColumnInfo(4, gen_column_header("備考", "正規表現パターンに対する備考や注意を書いてください。"))
             self._listbox.SetColumnWidth(4, 350)
@@ -475,7 +542,7 @@ class RegularExpressionsWindow(wx.Frame):
             """
             return self._history_marker != self._applied_marker
 
-        def _Add_Operation(self, func, argument):
+        def Add_Operation(self, func, argument):
             # 履歴をさかのぼっていた場合
             if self._history_marker < len(self._operation_list):
                 # それ以後の操作を破棄する
@@ -519,6 +586,16 @@ class RegularExpressionsWindow(wx.Frame):
             # 画面の更新
             self._Refresh_ListBox()
 
+            # 最後の操作ごとの特別な処理
+            if self._history_marker > 0:
+                history_index = self._history_marker - 1
+                # 最後の操作が編集なら、編集した項目を選択し直す
+                if self._operation_list[history_index] == self._ListBox_EditItem:
+                    self._listbox.Select(self._operation_args[history_index][0])
+                # 最後の操作が削除なら、削除した位置に来た項目を選択し直す
+                if self._operation_list[history_index] == self._ListBox_RemoveItem:
+                    self._listbox.Select(self._operation_args[history_index])
+
         def _Set_EnabledOverall(self, state):
             """
             全体の有効/無効を切り替える
@@ -554,6 +631,12 @@ class RegularExpressionsWindow(wx.Frame):
             # 一時設定とチェックボックスに反映
             self._ignorecase_list_edited[index] = enabled  # 一時設定に反映
             self._chkbx_ignorecase_list[index].SetValue(enabled)
+
+        def _ListBox_SelectedItemIndex(self):
+            """
+            選択された項目のインデックスを返す 何も選択されていないなら-1を返す
+            """
+            return self._listbox.GetFirstSelected()
 
         def _ListBox_MoveItem(self, arguments):
             """
@@ -614,6 +697,17 @@ class RegularExpressionsWindow(wx.Frame):
             self._example_list_edited.insert(position, example)
             self._remarks_list_edited.insert(position, remarks)
 
+        def _ListBox_EditItem(self, arguments):
+            """
+            リストボックスの項目を編集する
+
+            Args:
+                arguments: 引数のリスト(0: 編集位置(int), 1: 有効/無効(bool), 2: 大文字小文字無視(bool), 3: 正規表現パターン(str), 4: マッチ例(str), 5: 備考(str))
+            """
+            position = arguments[0]
+            self._ListBox_RemoveItem(position)
+            self._ListBox_AddItem(arguments)
+
         def _ListBox_RemoveItem(self, position):
             """
             指定した位置の要素を削除する
@@ -626,6 +720,108 @@ class RegularExpressionsWindow(wx.Frame):
             del self._pattern_list_edited[position]
             del self._example_list_edited[position]
             del self._remarks_list_edited[position]
+
+        class InputItemInfoWindow(wx.Frame):
+            def __init__(self, parent_window, title, parent_tab, operation, position, enabled=True, ignorecase=False, pattern="", example="", remarks=""):
+                super().__init__(parent_window, title=title, size=(500, 250), style=wx.CAPTION | wx.CLOSE_BOX | wx.RESIZE_BORDER | wx.FRAME_NO_TASKBAR | wx.FRAME_FLOAT_ON_PARENT)
+
+                self.Bind(wx.EVT_CLOSE, self.__Window_Close_Event)
+
+                # 親ウインドウと親タブ、対象の操作、対象の場所を保持
+                self.__parent_window = parent_window
+                self.__parent_tab = parent_tab
+                self.__operation = operation
+                self.__position = position
+                # 他の操作がされないように親ウインドウを無効化
+                self.__parent_window.Disable()
+
+                # 最小・最大サイズを設定
+                self.SetMinSize(wx.Size(500, 250))
+                self.SetMaxSize(wx.Size(1000, 250))
+
+                background = wx.Panel(self)
+
+                sizer = wx.BoxSizer(wx.VERTICAL)
+                background.SetSizer(sizer)
+                subsizer = wx.BoxSizer(wx.VERTICAL)
+                sizer.Add(subsizer, proportion=1, flag=wx.EXPAND | wx.ALL, border=15)
+
+                # チェックボックス
+                self.__chkbx_enabled = wx.CheckBox(background, label="有効化した状態で追加する")
+                self.__chkbx_enabled.SetValue(enabled)
+                subsizer.Add(self.__chkbx_enabled)
+                self.__chkbx_ignorecase = wx.CheckBox(background, label="大文字と小文字の違いを無視する")
+                self.__chkbx_ignorecase.SetValue(ignorecase)
+                subsizer.Add(self.__chkbx_ignorecase, flag=wx.BOTTOM, border=10)
+
+                lf_sizer = wx.BoxSizer(wx.HORIZONTAL)
+                subsizer.Add(lf_sizer, proportion=1, flag=wx.EXPAND)
+
+                # 入力フィールドのラベル
+                label_sizer = wx.BoxSizer(wx.VERTICAL)
+                lf_sizer.Add(label_sizer, flag=wx.EXPAND | wx.RIGHT, border=5)
+                label_pattern = wx.StaticText(background, label="正規表現パターン :")
+                label_sizer.Add(label_pattern, proportion=1)
+                label_example = wx.StaticText(background, label="マッチング例 :")
+                label_sizer.Add(label_example, proportion=1)
+                label_remarks = wx.StaticText(background, label="備考 :")
+                label_sizer.Add(label_remarks, proportion=1)
+
+                # 入力フィールド
+                field_sizer = wx.BoxSizer(wx.VERTICAL)
+                lf_sizer.Add(field_sizer, proportion=1, flag=wx.EXPAND)
+
+                field_pattern_sizer = wx.BoxSizer(wx.VERTICAL)
+                field_sizer.Add(field_pattern_sizer, proportion=1, flag=wx.EXPAND)
+                self.__field_pattern = wx.TextCtrl(background, value=pattern)
+                field_pattern_sizer.Add(self.__field_pattern, flag=wx.EXPAND)
+
+                field_example_sizer = wx.BoxSizer(wx.VERTICAL)
+                field_sizer.Add(field_example_sizer, proportion=1, flag=wx.EXPAND)
+                self.__field_example = wx.TextCtrl(background, value=example)
+                field_example_sizer.Add(self.__field_example, flag=wx.EXPAND)
+
+                field_remarks_sizer = wx.BoxSizer(wx.VERTICAL)
+                field_sizer.Add(field_remarks_sizer, proportion=1, flag=wx.EXPAND)
+                self.__field_remarks = wx.TextCtrl(background, value=remarks)
+                field_remarks_sizer.Add(self.__field_remarks, flag=wx.EXPAND)
+
+                # 各種ボタン
+                button_sizer = wx.BoxSizer(wx.HORIZONTAL)
+                subsizer.Add(button_sizer, flag=wx.ALIGN_RIGHT)
+                self.__button_ok = wx.Button(background, label="OK")
+                self.__button_ok.Bind(wx.EVT_BUTTON, self.__Button_OK_Event)
+                button_sizer.Add(self.__button_ok)
+                self.__button_cancel = wx.Button(background, label="キャンセル")
+                self.__button_cancel.Bind(wx.EVT_BUTTON, self.__Window_Close_Event)
+                button_sizer.Add(self.__button_cancel, flag=wx.LEFT, border=12)
+
+                self.Show()
+
+            def __Window_Close_Event(self, event):
+                """
+                ウインドウを閉じる時の処理
+                """
+                # 何もせずに閉じる
+                self.__parent_window.Enable()
+                self.Destroy()
+
+            def __Button_OK_Event(self, event):
+                """
+                OKボタンを押した時の処理
+                """
+                self.__parent_window.Enable()
+
+                # 親タブに操作を追加してウインドウを閉じる
+                self.__enabled = self.__chkbx_enabled.GetValue()
+                self.__ignorecase = self.__chkbx_ignorecase.GetValue()
+                self.__pattern = self.__field_pattern.GetValue()
+                self.__example = self.__field_example.GetValue()
+                self.__remarks = self.__field_remarks.GetValue()
+
+                self.__parent_tab.Add_Operation(self.__operation, [self.__position, self.__enabled, self.__ignorecase, self.__pattern, self.__example, self.__remarks])
+
+                self.Destroy()
 
     class StartLinesPage(RE_SubPage):
         """
