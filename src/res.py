@@ -27,18 +27,102 @@ class RegularExpressionsWindow(wx.Frame):
             title="正規表現の編集",
             size=(960, 540)
         )
+        # 背景パネル
+        panel = wx.Panel(self)
+
+        # ウインドウ全体のSizer
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        panel.SetSizer(sizer)
 
         # タブによるページを構成するためのコンポーネント
-        self.__pages = wx.Notebook(self)
+        self.__pages = wx.Notebook(panel)
+        sizer.Add(self.__pages, proportion=1, flag=wx.EXPAND)
+        # タブを用意
+        self.__tabs = [
+            RegularExpressionsWindow.StartLinesPage(self, self.__pages),
+            RegularExpressionsWindow.EndLinesPage(self, self.__pages),
+            RegularExpressionsWindow.IgnoreLinesPage(self, self.__pages),
+            RegularExpressionsWindow.ChartStartLinesPage(self, self.__pages)
+        ]
 
         # タブを追加
         self.__pages.InsertPage(0, RegularExpressionsWindow.IntroductionPage(self.__pages), "概要説明")
-        self.__pages.InsertPage(1, RegularExpressionsWindow.StartLinesPage(self.__pages), "抽出開始条件")
-        self.__pages.InsertPage(2, RegularExpressionsWindow.EndLinesPage(self.__pages), "抽出終了条件")
-        self.__pages.InsertPage(3, RegularExpressionsWindow.IgnoreLinesPage(self.__pages), "無視条件")
-        self.__pages.InsertPage(4, RegularExpressionsWindow.ChartStartLinesPage(self.__pages), "図表開始条件")
+        self.__pages.InsertPage(1, self.__tabs[0], "抽出開始条件")
+        self.__pages.InsertPage(2, self.__tabs[1], "抽出終了条件")
+        self.__pages.InsertPage(3, self.__tabs[2], "無視条件")
+        self.__pages.InsertPage(4, self.__tabs[3], "図表開始条件")
+
+        # OK・適用・キャンセルボタン
+        buttonsizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.__ok_button = wx.Button(panel, label="OK")
+        self.__ok_button.Bind(wx.EVT_BUTTON, self.__Button_OK_Event)
+        self.__ok_button.Disable()
+        buttonsizer.Add(self.__ok_button)
+        self.__apply_button = wx.Button(panel, label="適用")
+        self.__apply_button.Bind(wx.EVT_BUTTON, self.__Button_Apply_Event)
+        self.__apply_button.Disable()
+        buttonsizer.Add(self.__apply_button, flag=wx.LEFT, border=12)
+        self.__cancel_button = wx.Button(panel, label="キャンセル")
+        self.__cancel_button.Bind(wx.EVT_BUTTON, self.__Button_Cancel_Event)
+        buttonsizer.Add(self.__cancel_button, flag=wx.LEFT, border=12)
+        sizer.Add(buttonsizer, flag=wx.ALIGN_RIGHT | wx.TOP | wx.RIGHT | wx.BOTTOM, border=5)
 
         self.Show()
+
+    def __ApplyAndSaveSettings(self):
+        """
+        各タブにおける設定を反映する
+        """
+        for t in self.__tabs:
+            t.ApplySettings()
+
+        Settings.SaveSettings()
+
+    def __Button_OK_Event(self, event):
+        """
+        OKボタンを押した時の処理
+        """
+        self.__ApplyAndSaveSettings()
+        self.Destroy()
+
+    def __Button_Apply_Event(self, event):
+        """
+        Applyボタンを押した時の処理
+        """
+        # 設定に編集を保存
+        self.__ApplyAndSaveSettings()
+        # OK,Applyボタンを無効に
+        self.SwitchButtonsState()
+
+    def __Button_Cancel_Event(self, event):
+        """
+        キャンセルボタンを押した時の処理
+        """
+        self.Destroy()
+
+    def __TabIsEdited(self):
+        """
+        どれか一つでもタブが編集されたかを返す
+
+        Returns:
+            bool: どれか一つでもタブが編集されたか
+        """
+        edited = False
+        for t in self.__tabs:
+            edited |= t.IsEdited()
+
+        return edited
+
+    def SwitchButtonsState(self):
+        """
+        どれか一つでもタブが編集されているならOK・Applyボタンを有効にし、編集されていないなら無効にする
+        """
+        if self.__TabIsEdited():
+            self.__ok_button.Enable()
+            self.__apply_button.Enable()
+        else:
+            self.__ok_button.Disable()
+            self.__apply_button.Disable()
 
     class IntroductionPage(wx.Panel):
         """
@@ -69,24 +153,27 @@ class RegularExpressionsWindow(wx.Frame):
         """
         タブの基本設計
         """
-        def __init__(self, parent, Settings):
+        def __init__(self, window, parent, Settings):
+            self._window = window
             super().__init__(parent)
             # 該当箇所の設定
             self._Settings = Settings
             # 設定から値をコピー
-            self._Copy_SettingLists()
+            self._Initiate_SettingLists()
 
             # 操作関数のリストとその引数のリスト
             self._operation_list = []
             self._operation_args = []
             # 「現在、履歴のどの位置を表示しているか」を示すマーカー(Undo, Redoで利用)
             self._history_marker = 0
+            # Applyされたときのマーカーの位置
+            self._applied_marker = 0
 
             self._sizer = wx.BoxSizer(wx.VERTICAL)
 
             # 全体の有効化のチェックボックス
             self._chkbx_enabled_overall = wx.CheckBox(self, wx.ID_ANY, "この項目を有効にする")
-            self._chkbx_enabled_overall.SetValue(self._enabled_overall)
+            self._chkbx_enabled_overall.SetValue(self._enabled_overall_edited)
             self._chkbx_enabled_overall.Bind(wx.EVT_CHECKBOX, self._CheckBox_EnabledOverall_Event)
             self._sizer.Add(self._chkbx_enabled_overall, flag=wx.ALIGN_LEFT | wx.TOP | wx.LEFT, border=5)
 
@@ -121,22 +208,14 @@ class RegularExpressionsWindow(wx.Frame):
             self._lb_menusizer.Add(splitter2, flag=wx.ALIGN_CENTER | wx.TOP | wx.BOTTOM, border=5)
             self._undo_button = wx.Button(self, label="Undo")   # 一つ戻る
             self._undo_button.Bind(wx.EVT_BUTTON, self._Button_Undo_Event)
+            self._undo_button.Disable()     # 最初は無効化
             self._lb_menusizer.Add(self._undo_button)
             self._redo_button = wx.Button(self, label="Redo")   # 一つ進む
             self._redo_button.Bind(wx.EVT_BUTTON, self._Button_Redo_Event)
+            self._redo_button.Disable()     # 最初は無効化
             self._lb_menusizer.Add(self._redo_button, flag=wx.TOP, border=3)
             self._lb_sizer.Add(self._lb_menusizer, flag=wx.ALIGN_TOP)
             self._sizer.Add(self._lb_sizer, proportion=1, flag=wx.EXPAND | wx.ALL, border=5)
-
-            # OK・適用・キャンセルボタン
-            self._buttonsizer = wx.BoxSizer(wx.HORIZONTAL)
-            self._ok_button = wx.Button(self, label="OK")
-            self._buttonsizer.Add(self._ok_button)
-            self._applybutton = wx.Button(self, label="適用")
-            self._buttonsizer.Add(self._applybutton, flag=wx.LEFT, border=12)
-            self._cancelbutton = wx.Button(self, label="キャンセル")
-            self._buttonsizer.Add(self._cancelbutton, flag=wx.LEFT, border=12)
-            self._sizer.Add(self._buttonsizer, flag=wx.ALIGN_RIGHT | wx.RIGHT | wx.BOTTOM, border=5)
 
             self.SetSizer(self._sizer)
             self.Refresh()
@@ -145,11 +224,36 @@ class RegularExpressionsWindow(wx.Frame):
             """
             全体の有効化のチェックボックスを押した時の処理
             """
-            self._Settings.enabled_overall = self._chkbx_enabled_overall.GetValue()
-            if self._chkbx_enabled_overall.GetValue():
-                self._listbox.Enable()
-            else:
-                self._listbox.Disable()
+            # チェックボックスから値を取得し、一時設定に反映
+            enabled_overall = self._chkbx_enabled_overall.GetValue()
+            self._enabled_overall_edited = enabled_overall
+
+            # 履歴に操作を追加
+            self._Add_Operation(self._Set_EnabledOverall, enabled_overall)
+
+        def _CheckBox_Enable_Event(self, event):
+            """
+            リスト項目の有効化のチェックボックスを押した時の処理
+            """
+            # IDが行番号と一致しているので取得し、対応する値を一時設定に反映
+            id = event.GetId()
+            enabled = self._chkbx_enable_list[id].GetValue()
+            self._enabled_list_edited[id] = enabled
+
+            # 履歴に操作を追加
+            self._Add_Operation(self._ListBox_SwitchEnabled, [id, enabled])
+
+        def _CheckBox_IgnoreCase_Event(self, event):
+            """
+            リスト項目の大文字小文字無視の有効化のチェックボックスを押した時の処理
+            """
+            # IDが行番号と一致しているので取得し、対応する値を一時設定に反映
+            id = event.GetId()
+            enabled = self._chkbx_ignorecase_list[id].GetValue()
+            self._ignorecase_list_edited[id] = enabled
+
+            # 履歴に操作を追加
+            self._Add_Operation(self._ListBox_SwitchIgnoreCase, [id, enabled])
 
         def _Button_Add_Event(self, event):
             """
@@ -166,6 +270,11 @@ class RegularExpressionsWindow(wx.Frame):
                 self._history_marker -= 1
             self._Apply_Operations()
 
+            # 親ウインドウのOK,Applyボタンの有効/無効を切り替える
+            self._window.SwitchButtonsState()
+            # 自身のボタンの有効/無効も切り替える
+            self._Switch_UndoRedoButtonsState()
+
         def _Button_Redo_Event(self, event):
             """
             Redo(一つ進む)ボタンを押した時の処理
@@ -174,6 +283,26 @@ class RegularExpressionsWindow(wx.Frame):
             if self._history_marker < len(self._operation_list):
                 self._history_marker += 1
             self._Apply_Operations()
+
+            # 親ウインドウのOK,Applyボタンの有効/無効を切り替える
+            self._window.SwitchButtonsState()
+            # 自身のボタンの有効/無効も切り替える
+            self._Switch_UndoRedoButtonsState()
+
+        def _Switch_UndoRedoButtonsState(self):
+            """
+            状態に応じてUndo, Redoボタンの有効/無効を切り替える
+            """
+            # これ以上遡る履歴がないならUndoボタンを無効にし、そうでないなら有効にする
+            if self._history_marker == 0:
+                self._undo_button.Disable()
+            else:
+                self._undo_button.Enable()
+            # 最新の履歴に到達しているならRedoボタンを無効にし、そうでないなら有効にする
+            if self._history_marker == len(self._operation_list):
+                self._redo_button.Disable()
+            else:
+                self._redo_button.Enable()
 
         def _Prepare_ListBox(self):
             """
@@ -191,7 +320,7 @@ class RegularExpressionsWindow(wx.Frame):
             """
             リストボックスの表示を更新する
             """
-            # リストボックスをSizerから除きつつ破棄
+            # リストボックスをSizerから除く(破棄はしない)
             self._lb_boxsizer.Detach(0)
 
             # 古いリストボックスをギリギリまで保持しておくことで画面のチラつきを抑える
@@ -240,7 +369,7 @@ class RegularExpressionsWindow(wx.Frame):
             """
             リストボックスに既存の項目を並べる
             """
-            for i in range(len(self._enabled_list)):
+            for i in range(len(self._enabled_list_edited)):
                 # 一行ごとに色を互い違いにする
                 if i % 2:
                     color = wx.Colour(230, 230, 230)    # 濃い灰色
@@ -252,10 +381,12 @@ class RegularExpressionsWindow(wx.Frame):
                 self._listbox.SetItemBackgroundColour(i, color)
 
                 # チェックボックスの用意
-                chkbx_enable = RegularExpressionsWindow.ListCheckBox(self._listbox, i)
-                chkbx_ignorecase = RegularExpressionsWindow.ListCheckBox(self._listbox, i)
-                chkbx_enable.SetValue(self._enabled_list[i])   # 設定に基づいて初期値を設定
-                chkbx_ignorecase.SetValue(self._ignorecase_list[i])
+                chkbx_enable = wx.CheckBox(self._listbox, id=i)
+                chkbx_enable.Bind(wx.EVT_CHECKBOX, self._CheckBox_Enable_Event)
+                chkbx_ignorecase = wx.CheckBox(self._listbox, id=i)
+                chkbx_ignorecase.Bind(wx.EVT_CHECKBOX, self._CheckBox_IgnoreCase_Event)
+                chkbx_enable.SetValue(self._enabled_list_edited[i])   # 設定に基づいて初期値を設定
+                chkbx_ignorecase.SetValue(self._ignorecase_list_edited[i])
                 chkbx_enable.SetBackgroundColour(color)
                 chkbx_ignorecase.SetBackgroundColour(color)
                 self._chkbx_enable_list.append(chkbx_enable)    # 後から追跡できるようにリストにセット
@@ -267,31 +398,78 @@ class RegularExpressionsWindow(wx.Frame):
                 # できることはできるがなにか面倒な儀式を踏まないとできなさそうな予感
                 self._listbox.SetItemWindow(i, 0, chkbx_enable)
                 self._listbox.SetItemWindow(i, 1, chkbx_ignorecase)
-                self._listbox.SetStringItem(i, 2, self._pattern_list[i])
-                self._listbox.SetStringItem(i, 3, self._example_list[i])
-                self._listbox.SetStringItem(i, 4, self._remarks_list[i])
+                self._listbox.SetStringItem(i, 2, self._pattern_list_edited[i])
+                self._listbox.SetStringItem(i, 3, self._example_list_edited[i])
+                self._listbox.SetStringItem(i, 4, self._remarks_list_edited[i])
 
-        def _Copy_SettingLists(self):
+        def _Initiate_SettingLists(self):
             """
-            設定から値をコピーする
+            一時設定を、編集ウインドウを開いた当初のものに戻す
             """
-            self._enabled_overall = self._Settings.enabled_overall
-            self._enabled_list = deepcopy(self._Settings.enabled_list)
-            self._ignorecase_list = deepcopy(self._Settings.ignorecase_list)
-            self._pattern_list = deepcopy(self._Settings.pattern_list)
-            self._example_list = deepcopy(self._Settings.example_list)
-            self._remarks_list = deepcopy(self._Settings.remarks_list)
+            # 設定から値をコピーしていない場合、初期値としてコピーする
+            # コピーしてからの値の変更で設定ごと変えられないように、deepcopyでコピー
+            if not hasattr(self, "_enabled_overall_initial"):
+                self._enabled_overall_initial = self._Settings.enabled_overall
+                self._enabled_list_initial = deepcopy(self._Settings.enabled_list)
+                self._ignorecase_list_initial = deepcopy(self._Settings.ignorecase_list)
+                self._pattern_list_initial = deepcopy(self._Settings.pattern_list)
+                self._example_list_initial = deepcopy(self._Settings.example_list)
+                self._remarks_list_initial = deepcopy(self._Settings.remarks_list)
+            # 初期設定を反映
+            self._enabled_overall_edited = self._enabled_overall_initial
+            self._enabled_list_edited = deepcopy(self._enabled_list_initial)
+            self._ignorecase_list_edited = deepcopy(self._ignorecase_list_initial)
+            self._pattern_list_edited = deepcopy(self._pattern_list_initial)
+            self._example_list_edited = deepcopy(self._example_list_initial)
+            self._remarks_list_edited = deepcopy(self._remarks_list_initial)
+
+        def ApplySettings(self):
+            """
+            設定に値の変更を適用する
+            """
+            # コピーしてからの値の変更で設定ごと変えられないように、deepcopyでコピー
+            self._Settings.enabled_overall = self._enabled_overall_edited
+            self._Settings.enabled_list = deepcopy(self._enabled_list_edited)
+            self._Settings.ignorecase_list = deepcopy(self._ignorecase_list_edited)
+            self._Settings.pattern_list = deepcopy(self._pattern_list_edited)
+            self._Settings.example_list = deepcopy(self._example_list_edited)
+            self._Settings.remarks_list = deepcopy(self._remarks_list_edited)
+
+            # どのマーカーの位置で保存されたかを記録
+            self._applied_marker = self._history_marker
+
+        def IsEdited(self):
+            """
+            編集された状態かどうかを返す
+
+            Returns:
+                bool: 編集された状態かどうか
+            """
+            return self._history_marker != self._applied_marker
 
         def _Add_Operation(self, func, argument):
-            # もし履歴をさかのぼっていたら、それ以後の操作を破棄する
+            # 履歴をさかのぼっていた場合
             if self._history_marker < len(self._operation_list):
+                # それ以後の操作を破棄する
                 self._operation_list = self._operation_list[:self._history_marker]
                 self._operation_args = self._operation_args[:self._history_marker]
+                # 保存マーカー位置が0より大きく(過去にApply済みで)、
+                # マーカー位置が保存マーカー位置より前の場合、
+                # この操作によって、Undo,Redoでは元の設定には戻らなくなったので、
+                # 保存マーカー位置を絶対に到達できない位置にして、
+                # 必ずIsEditedでTrueが返ってくるようにする
+                if self._history_marker < self._applied_marker:
+                    self._applied_marker = -1
 
             # 操作を追加し、マーカーを一つ進める
             self._operation_list.append(func)
             self._operation_args.append(argument)
             self._history_marker += 1
+
+            # 親ウインドウのOK,Applyボタンの有効/無効を切り替える
+            self._window.SwitchButtonsState()
+            # Undo, Redoボタンの有効/無効も切り替える
+            self._Switch_UndoRedoButtonsState()
 
             # 操作を適用して画面を更新
             self._Apply_Operations()
@@ -301,7 +479,10 @@ class RegularExpressionsWindow(wx.Frame):
             今までに行われた(登録された)操作を実行し、その結果をウインドウに表示する
             """
             # 初期状態として設定をコピー
-            self._Copy_SettingLists()
+            self._Initiate_SettingLists()
+
+            # ウィジェット類を初期値に合わせる
+            self._chkbx_enabled_overall.SetValue(self._enabled_overall_edited)     # 全体の有効化
 
             # 登録された操作を順次実行(Undoで履歴をさかのぼっていたらその位置まで)
             for i in range(self._history_marker):
@@ -311,7 +492,40 @@ class RegularExpressionsWindow(wx.Frame):
             self._Refresh_ListBox()
 
         def _Set_EnabledOverall(self, state):
-            self._enabled_overall = state
+            """
+            全体の有効/無効を切り替える
+
+            Args:
+                state (bool): 有効/無効
+            """
+            self._enabled_overall_edited = state
+            self._chkbx_enabled_overall.SetValue(state)
+
+        def _ListBox_SwitchEnabled(self, arguments):
+            """リストボックスの要素(一つ)の有効/無効を切り替える
+
+            Args:
+                arguments: 引数のリスト(0: 要素が何行目にあるか(int), 1: 有効にするか無効にするか(bool))
+            """
+            # 引数リストから個々の値を取得
+            index = arguments[0]
+            enabled = arguments[1]
+            # 一時設定とチェックボックスに反映
+            self._enabled_list_edited[index] = enabled
+            self._chkbx_enable_list[index].SetValue(enabled)
+
+        def _ListBox_SwitchIgnoreCase(self, arguments):
+            """リストボックスの要素(一つ)の大文字小文字無視の有効/無効を切り替える
+
+            Args:
+                arguments: 引数のリスト(0: 要素が何行目にあるか(int), 1: 有効にするか無効にするか(bool))
+            """
+            # 引数リストから個々の値を取得
+            index = arguments[0]
+            enabled = arguments[1]
+            # 一時設定とチェックボックスに反映
+            self._ignorecase_list_edited[index] = enabled  # 一時設定に反映
+            self._chkbx_ignorecase_list[index].SetValue(enabled)
 
         def _ListBox_MoveItem(self, arguments):
             """
@@ -322,6 +536,7 @@ class RegularExpressionsWindow(wx.Frame):
             Args:
                 arguments: 引数のリスト(0: 移動させたい要素の元の位置(int), 1: 移動先の位置(int))
             """
+            # 引数リストから個々の値を取得
             item_position = arguments[0]
             target_position = arguments[1]
 
@@ -339,11 +554,11 @@ class RegularExpressionsWindow(wx.Frame):
                     target_list[target_pos], target_list[index:target_pos] = target_list[index], target_list[index + 1:target_pos + 1]
 
             # 要素を移動
-            move_listitem(self._enabled_list, item_position, target_position)
-            move_listitem(self._ignorecase_list, item_position, target_position)
-            move_listitem(self._pattern_list, item_position, target_position)
-            move_listitem(self._example_list, item_position, target_position)
-            move_listitem(self._remarks_list, item_position, target_position)
+            move_listitem(self._enabled_list_edited, item_position, target_position)
+            move_listitem(self._ignorecase_list_edited, item_position, target_position)
+            move_listitem(self._pattern_list_edited, item_position, target_position)
+            move_listitem(self._example_list_edited, item_position, target_position)
+            move_listitem(self._remarks_list_edited, item_position, target_position)
 
         def _ListBox_AddItem(self, arguments):
             """
@@ -352,6 +567,7 @@ class RegularExpressionsWindow(wx.Frame):
             Args:
                 arguments: 引数のリスト(0: 挿入位置(int), 1: 有効/無効(bool), 2: 大文字小文字無視(bool), 3: 正規表現パターン(str), 4: マッチ例(str), 5: 備考(str))
             """
+            # 引数リストから個々の値を取得
             position = arguments[0]
             enabled = arguments[1]
             ignorecase = arguments[2]
@@ -360,15 +576,15 @@ class RegularExpressionsWindow(wx.Frame):
             remarks = arguments[5]
 
             # 挿入位置の指定がリストの長さを逸脱しているか、負の値のときは末尾に指定
-            if (position > len(self._enabled_list)) or position < 0:
-                position = len(self._enabled_list)
+            if (position > len(self._enabled_list_edited)) or position < 0:
+                position = len(self._enabled_list_edited)
 
             # 要素を挿入
-            self._enabled_list.insert(position, enabled)
-            self._ignorecase_list.insert(position, ignorecase)
-            self._pattern_list.insert(position, pattern)
-            self._example_list.insert(position, example)
-            self._remarks_list.insert(position, remarks)
+            self._enabled_list_edited.insert(position, enabled)
+            self._ignorecase_list_edited.insert(position, ignorecase)
+            self._pattern_list_edited.insert(position, pattern)
+            self._example_list_edited.insert(position, example)
+            self._remarks_list_edited.insert(position, remarks)
 
         def _ListBox_RemoveItem(self, position):
             """
@@ -377,47 +593,39 @@ class RegularExpressionsWindow(wx.Frame):
             Args:
                 position (int): 削除したい要素の位置
             """
-            del self._enabled_list[position]
-            del self._ignorecase_list[position]
-            del self._pattern_list[position]
-            del self._example_list[position]
-            del self._remarks_list[position]
-
-    class ListCheckBox(wx.CheckBox):
-        """
-        行番号を内包したチェックボックス
-        """
-        def __init__(self, parent, row_num):
-            super().__init__(parent)
-            self.row_num = row_num
+            del self._enabled_list_edited[position]
+            del self._ignorecase_list_edited[position]
+            del self._pattern_list_edited[position]
+            del self._example_list_edited[position]
+            del self._remarks_list_edited[position]
 
     class StartLinesPage(RE_SubPage):
         """
         開始条件を扱うページ
         """
-        def __init__(self, parent):
-            super().__init__(parent, Settings.RegularExpressions.StartLines())
+        def __init__(self, window, parent):
+            super().__init__(window, parent, Settings.RegularExpressions.StartLines())
 
     class EndLinesPage(RE_SubPage):
         """
         終了条件を扱うページ
         """
-        def __init__(self, parent):
-            super().__init__(parent, Settings.RegularExpressions.EndLines())
+        def __init__(self, window, parent):
+            super().__init__(window, parent, Settings.RegularExpressions.EndLines())
 
     class IgnoreLinesPage(RE_SubPage):
         """
         無視条件を扱うページ
         """
-        def __init__(self, parent):
-            super().__init__(parent, Settings.RegularExpressions.IgnoreLines())
+        def __init__(self, window, parent):
+            super().__init__(window, parent, Settings.RegularExpressions.IgnoreLines())
 
     class ChartStartLinesPage(RE_SubPage):
         """
         図表開始条件を扱うページ
         """
-        def __init__(self, parent):
-            super().__init__(parent, Settings.RegularExpressions.ChartStartLines())
+        def __init__(self, window, parent):
+            super().__init__(window, parent, Settings.RegularExpressions.ChartStartLines())
 
 
 class RegularExpressions:
