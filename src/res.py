@@ -1,7 +1,8 @@
 import wx
 
-from copy import deepcopy
+from copy import copy, deepcopy
 from data import res_introduction
+from enum import Enum
 from settings import Settings
 from wx.lib.agw import ultimatelistctrl as ULC
 from wx.lib.scrolledpanel import ScrolledPanel
@@ -20,6 +21,24 @@ def handler(func, *args):
     return func(*args)
 
 
+def move_listitem(target_list, index, target_pos):
+    """リストの要素を移動させる
+
+    Args:
+        target_list (list): 対象のリスト
+        index (int): 移動させたい要素の位置
+        target_pos (int): 移動先の位置
+    """
+    if index > target_pos:
+        target_list[target_pos], target_list[target_pos + 1:index + 1] = target_list[index], target_list[target_pos:index]
+    elif index < target_pos:
+        target_list[target_pos], target_list[index:target_pos] = target_list[index], target_list[index + 1:target_pos + 1]
+
+
+class RegularExpressionsWindow_MenuBar_Menu(Enum):
+    SHOW_MARKDOWN_SETTINGS = 1
+
+
 class RegularExpressionsWindow(wx.Frame):
     def __init__(self, parent):
         super().__init__(
@@ -30,42 +49,38 @@ class RegularExpressionsWindow(wx.Frame):
         self.__parent = parent  # 親の保持
 
         self.Bind(wx.EVT_CLOSE, self.__Window_Close_Event)
+
+        # メニューバーを設定
+        self.__menu_bar = wx.MenuBar()
+        self.__setting_menu = RegularExpressionsWindow.SettingMenu()
+        self.__menu_bar.Append(self.__setting_menu, "設定")
+        self.Bind(wx.EVT_MENU, self.__Menu_Event)
+        self.SetMenuBar(self.__menu_bar)
+
         # 背景パネル
-        panel = wx.Panel(self)
+        self.__background = wx.Panel(self)
 
         # ウインドウ全体のSizer
         sizer = wx.BoxSizer(wx.VERTICAL)
-        panel.SetSizer(sizer)
+        self.__background.SetSizer(sizer)
 
         # タブによるページを構成するためのコンポーネント
-        self.__pages = wx.Notebook(panel)
-        sizer.Add(self.__pages, proportion=1, flag=wx.EXPAND)
+        self.__pages_sizer = wx.BoxSizer(wx.VERTICAL)
+        sizer.Add(self.__pages_sizer, proportion=1, flag=wx.EXPAND)
         # タブを用意
-        self.__tabs = [
-            RegularExpressionsWindow.StartLinesPage(self, self.__pages),
-            RegularExpressionsWindow.EndLinesPage(self, self.__pages),
-            RegularExpressionsWindow.IgnoreLinesPage(self, self.__pages),
-            RegularExpressionsWindow.ChartStartLinesPage(self, self.__pages)
-        ]
-
-        # タブを追加
-        self.__pages.InsertPage(0, RegularExpressionsWindow.IntroductionPage(self.__pages), "概要説明")
-        self.__pages.InsertPage(1, self.__tabs[0], "抽出開始条件")
-        self.__pages.InsertPage(2, self.__tabs[1], "抽出終了条件")
-        self.__pages.InsertPage(3, self.__tabs[2], "無視条件")
-        self.__pages.InsertPage(4, self.__tabs[3], "図表開始条件")
+        self.__Prepare_SubPage(Settings.RegularExpressions().show_markdown_settings)
 
         # OK・適用・キャンセルボタン
         buttonsizer = wx.BoxSizer(wx.HORIZONTAL)
-        self.__ok_button = wx.Button(panel, label="OK")
+        self.__ok_button = wx.Button(self.__background, label="OK")
         self.__ok_button.Bind(wx.EVT_BUTTON, self.__Button_OK_Event)
         self.__ok_button.Disable()
         buttonsizer.Add(self.__ok_button)
-        self.__apply_button = wx.Button(panel, label="適用")
+        self.__apply_button = wx.Button(self.__background, label="適用")
         self.__apply_button.Bind(wx.EVT_BUTTON, self.__Button_Apply_Event)
         self.__apply_button.Disable()
         buttonsizer.Add(self.__apply_button, flag=wx.LEFT, border=12)
-        self.__cancel_button = wx.Button(panel, label="キャンセル")
+        self.__cancel_button = wx.Button(self.__background, label="キャンセル")
         self.__cancel_button.Bind(wx.EVT_BUTTON, self.__Button_Cancel_Event)
         buttonsizer.Add(self.__cancel_button, flag=wx.LEFT, border=12)
         sizer.Add(buttonsizer, flag=wx.ALIGN_RIGHT | wx.TOP | wx.RIGHT | wx.BOTTOM, border=5)
@@ -151,6 +166,77 @@ class RegularExpressionsWindow(wx.Frame):
         else:
             self.__ok_button.Disable()
             self.__apply_button.Disable()
+
+    def __Prepare_SubPage(self, show_markdown_settings):
+        """
+        タブページを用意する
+
+        Args:
+            show_markdown_settings (bool): Markdownに関わるタブページを表示するか
+        """
+        self.__pages = wx.Notebook(self.__background)
+        self.__pages_sizer.Add(self.__pages, proportion=1, flag=wx.EXPAND)
+
+        # 条件によっては追加されないページもある
+        self.__tabs = []
+        self.__tabs.append(RegularExpressionsWindow.StartLinesPage(self, self.__pages))
+        self.__tabs.append(RegularExpressionsWindow.EndLinesPage(self, self.__pages))
+        self.__tabs.append(RegularExpressionsWindow.IgnoreLinesPage(self, self.__pages))
+        self.__tabs.append(RegularExpressionsWindow.StandardReplaceLinesPage(self, self.__pages))
+        if show_markdown_settings:
+            self.__tabs.append(RegularExpressionsWindow.MarkdownReplaceLinesPage(self, self.__pages))
+        self.__tabs.append(RegularExpressionsWindow.ChartStartLinesPage(self, self.__pages))
+        self.__tabs.append(RegularExpressionsWindow.PossibilityReturnLinesPage(self, self.__pages))
+        self.__tabs.append(RegularExpressionsWindow.IgnoreReturnLinesPage(self, self.__pages))
+        if show_markdown_settings:
+            self.__tabs.append(RegularExpressionsWindow.HeaderLinesPage(self, self.__pages))
+
+        tabs = copy(self.__tabs)
+        tab_number = [i for i in range(1, len(tabs) + 1)]
+
+        # タブを追加
+        self.__pages.InsertPage(0, RegularExpressionsWindow.IntroductionPage(self.__pages), "概要説明")
+        self.__pages.InsertPage(tab_number.pop(0), tabs.pop(0), "抽出開始条件")
+        self.__pages.InsertPage(tab_number.pop(0), tabs.pop(0), "抽出終了条件")
+        self.__pages.InsertPage(tab_number.pop(0), tabs.pop(0), "無視条件")
+        self.__pages.InsertPage(tab_number.pop(0), tabs.pop(0), "置換条件")
+        if show_markdown_settings:
+            self.__pages.InsertPage(tab_number.pop(0), tabs.pop(0), "置換条件(Markdown)")
+        self.__pages.InsertPage(tab_number.pop(0), tabs.pop(0), "図表開始条件")
+        self.__pages.InsertPage(tab_number.pop(0), tabs.pop(0), "改行条件")
+        self.__pages.InsertPage(tab_number.pop(0), tabs.pop(0), "改行無視条件")
+        if show_markdown_settings:
+            self.__pages.InsertPage(tab_number.pop(0), tabs.pop(0), "見出し条件")
+
+    def __Refresh_SubPage(self, show_markdown_settings):
+        """
+        タブページの表示を更新する
+        """
+        # タブページをSizerから除く(破棄はしない)
+        self.__pages_sizer.Detach(0)
+
+        # 古いタブページをギリギリまで保持しておくことで画面のチラつきを抑える
+        temp = self.__pages        # 古いタブページを退避
+        self.__Prepare_SubPage(Settings.RegularExpressions().show_markdown_settings)     # 新しいタブページを用意
+        self.__pages_sizer.Layout()  # 新しいタブページを配置
+        temp.Destroy()              # 古いタブページを破棄
+
+    def __Menu_Event(self, event):
+        """
+        選ばれたメニューに応じて処理を行う
+        """
+        selected_menu = event.GetId()
+        if selected_menu == RegularExpressionsWindow_MenuBar_Menu.SHOW_MARKDOWN_SETTINGS.value:     # Markdown用の設定を表示する
+            Settings.RegularExpressions().show_markdown_settings = self.__setting_menu.menu_chkbx_show_markdown_settings.IsChecked()    # 設定に反映
+            self.__Refresh_SubPage(Settings.RegularExpressions().show_markdown_settings)
+
+    class SettingMenu(wx.Menu):
+        """
+        メニューバーの「設定」
+        """
+        def __init__(self):
+            super().__init__()
+            self.menu_chkbx_show_markdown_settings = self.AppendCheckItem(RegularExpressionsWindow_MenuBar_Menu.SHOW_MARKDOWN_SETTINGS.value, "Markdown用の設定を表示する")
 
     class IntroductionPage(wx.Panel):
         """
@@ -591,6 +677,13 @@ class RegularExpressionsWindow(wx.Frame):
             return self._history_marker != self._applied_marker
 
         def Add_Operation(self, func, argument):
+            """
+            操作履歴に操作を追加する
+
+            Args:
+                func (pointer of function): 操作を行うメソッド
+                argument: メソッドに入れる引数
+            """
             # 履歴をさかのぼっていた場合
             if self._history_marker < len(self._operation_list):
                 # それ以後の操作を破棄する
@@ -700,19 +793,6 @@ class RegularExpressionsWindow(wx.Frame):
             # 引数リストから個々の値を取得
             item_position = arguments[0]
             target_position = arguments[1]
-
-            def move_listitem(target_list, index, target_pos):
-                """リストの要素を移動させる
-
-                Args:
-                    target_list (list): 対象のリスト
-                    index (int): 移動させたい要素の位置
-                    target_pos (int): 移動先の位置
-                """
-                if index > target_pos:
-                    target_list[target_pos], target_list[target_pos + 1:index + 1] = target_list[index], target_list[target_pos:index]
-                elif index < target_pos:
-                    target_list[target_pos], target_list[index:target_pos] = target_list[index], target_list[index + 1:target_pos + 1]
 
             # 要素を移動
             move_listitem(self._enabled_list_edited, item_position, target_position)
@@ -894,12 +974,47 @@ class RegularExpressionsWindow(wx.Frame):
         def __init__(self, window, parent):
             super().__init__(window, parent, Settings.RegularExpressions.IgnoreLines())
 
+    class StandardReplaceLinesPage(RE_SubPage):
+        """
+        置換条件を扱うページ
+        """
+        def __init__(self, window, parent):
+            super().__init__(window, parent, Settings.RegularExpressions.ReplaceParts.Standard())
+
+    class MarkdownReplaceLinesPage(RE_SubPage):
+        """
+        置換条件(Markdown)を扱うページ
+        """
+        def __init__(self, window, parent):
+            super().__init__(window, parent, Settings.RegularExpressions.ReplaceParts.Markdown())
+
     class ChartStartLinesPage(RE_SubPage):
         """
         図表開始条件を扱うページ
         """
         def __init__(self, window, parent):
             super().__init__(window, parent, Settings.RegularExpressions.ChartStartLines())
+
+    class PossibilityReturnLinesPage(RE_SubPage):
+        """
+        改行条件を扱うページ
+        """
+        def __init__(self, window, parent):
+            super().__init__(window, parent, Settings.RegularExpressions.ReturnLines.Possibility())
+
+    class IgnoreReturnLinesPage(RE_SubPage):
+        """
+        改行無視条件を扱うページ
+        """
+        def __init__(self, window, parent):
+            super().__init__(window, parent, Settings.RegularExpressions.ReturnLines.Ignore())
+
+    class HeaderLinesPage(RE_SubPage):
+        """
+        置換条件を扱うページ
+        """
+        def __init__(self, window, parent):
+            super().__init__(window, parent, Settings.RegularExpressions.HeaderLines())
 
 
 class RegularExpressions:

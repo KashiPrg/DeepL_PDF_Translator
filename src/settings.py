@@ -253,6 +253,17 @@ class Settings():
         """
         正規表現まわりの設定を扱うクラス
         """
+        def __subsettings(self):
+            return settings()["regular_expressions"]
+
+        @property
+        def show_markdown_settings(self):
+            return self.__subsettings()["bool_show_markdown_settings"]
+
+        @show_markdown_settings.setter
+        def show_markdown_settings(self, bool_show_markdown_settings):
+            self.__subsettings()["bool_show_markdown_settings"] = bool_show_markdown_settings
+
         class StartLines(ConditionLines):
             def _subsettings(self):
                 return settings()["regular_expressions"]["start_lines"]

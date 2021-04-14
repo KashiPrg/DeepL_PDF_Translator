@@ -123,6 +123,7 @@ default_settings = {
     "bool_output_source": True,
     "bool_source_as_comment": True,
     "regular_expressions": {
+        "bool_show_markdown_settings": False,
         "start_lines": {
             "bool_enabled_overall": True,
             "bool_output_hit_lines": False,
