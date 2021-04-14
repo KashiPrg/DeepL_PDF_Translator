@@ -15,6 +15,10 @@ class MainWindow_MenuBar_Menu(Enum):
     EDIT_HEADER_RE = 207
 
 
+class RegularExpressionsWindow_MenuBar_Menu(Enum):
+    SHOW_MARKDOWN_SETTINGS = 1
+
+
 class Browser(Enum):
     CHROME = "Chrome"
     EDGE = "Edge"
@@ -114,6 +118,99 @@ res_introduction = (
 )
 
 
+res_default_column_labels = [
+    "",
+    "大小無視",
+    "正規表現パターン",
+    "マッチング例",
+    "備考"
+]
+
+
+res_default_column_tips = [
+    "その項目を有効にするかを管理します。",
+    "大文字と小文字の違いを無視するかを管理します。",
+    "このパターンに適合する行に、対応する操作が行われます。",
+    "正規表現パターンに適合する文字列の例です。",
+    "この項目に関する備考や注意を書いてください。"
+]
+
+
+res_default_column_widths = [
+    25,
+    60,
+    225,
+    250,
+    350
+]
+
+
+res_replace_column_labels = [
+    "",
+    "大小無視",
+    "正規表現パターン",
+    "置換後の文字列",
+    "マッチング例",
+    "備考"
+]
+
+
+res_replace_column_tips = [
+    "その項目を有効にするかを管理します。",
+    "大文字と小文字の違いを無視するかを管理します。",
+    "このパターンに適合する文字列が置換されます。",
+    "パターンに適合する文字列が、どのような文字列に置き換わるかを管理します。",
+    "正規表現パターンに適合する文字列の例です。",
+    "この項目に関する備考や注意を書いてください。"
+]
+
+
+res_replace_column_widths = [
+    25,
+    60,
+    225,
+    100,
+    250,
+    350
+]
+
+
+res_header_column_labels = [
+    "",
+    "大小無視",
+    "正規表現パターン",
+    "見出しの深さ判定",
+    "訳文から除く文字列",
+    "見出しの最大サイズ",
+    "マッチング例",
+    "備考"
+]
+
+
+res_header_column_tips = [
+    "その項目を有効にするかを管理します。",
+    "大文字と小文字の違いを無視するかを管理します。",
+    "このパターンに適合する行が見出しと見なされます。",
+    "このパターンに適合する部分の数だけ、階層の深い見出しと見なされます。",
+    "このパターンに適合する文字列が、見出しの訳文から除かれます。",
+    "見出しの最大サイズを管理します。\n値の範囲は1(最大サイズ)～6(最小サイズ)です。",
+    "正規表現パターンに適合する文字列の例です。",
+    "この項目に関する備考や注意を書いてください。"
+]
+
+
+res_header_column_widths = [
+    25,
+    60,
+    225,
+    125,
+    125,
+    125,
+    250,
+    350
+]
+
+
 default_settings = {
     "str_target_lang": Target_Lang.JAPANESE.value,
     "str_web_browser": Browser.CHROME.value,
@@ -123,7 +220,7 @@ default_settings = {
     "bool_output_source": True,
     "bool_source_as_comment": True,
     "regular_expressions": {
-        "bool_show_markdown_settings": False,
+        "bool_show_markdown_settings": True,
         "start_lines": {
             "bool_enabled_overall": True,
             "bool_output_hit_lines": False,
@@ -480,7 +577,7 @@ default_settings = {
                 r"\d+\s*\.\s*",
                 r"\d+\s*\.\s*"
             ],
-            "list_str_max_size": [
+            "list_int_max_size": [
                 2,
                 2,
                 2,

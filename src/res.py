@@ -1,8 +1,7 @@
 import wx
 
 from copy import copy, deepcopy
-from data import res_introduction
-from enum import Enum
+from data import RegularExpressionsWindow_MenuBar_Menu, res_introduction, res_default_column_labels, res_default_column_tips, res_default_column_widths, res_replace_column_labels, res_replace_column_tips, res_replace_column_widths, res_header_column_labels, res_header_column_tips, res_header_column_widths
 from settings import Settings
 from wx.lib.agw import ultimatelistctrl as ULC
 from wx.lib.scrolledpanel import ScrolledPanel
@@ -35,8 +34,284 @@ def move_listitem(target_list, index, target_pos):
         target_list[target_pos], target_list[index:target_pos] = target_list[index], target_list[index + 1:target_pos + 1]
 
 
-class RegularExpressionsWindow_MenuBar_Menu(Enum):
-    SHOW_MARKDOWN_SETTINGS = 1
+class InputItemInfoWindow(wx.Frame):
+    """
+    リストボックスの項目の情報を入力するウインドウ(汎用)
+    """
+    def __init__(self, parent_window, title, window_minsize, window_maxsize, parent_tab, operation, position, enabled=True, ignorecase=False, pattern="", example="", remarks=""):
+        super().__init__(parent_window, title=title, size=window_minsize, style=wx.CAPTION | wx.CLOSE_BOX | wx.RESIZE_BORDER | wx.FRAME_NO_TASKBAR | wx.FRAME_FLOAT_ON_PARENT)
+
+        # 各種Sizerやボタンを用意、その他初期化
+        self._Initiate(parent_window, parent_tab, operation, position, window_minsize, window_maxsize)
+
+        self._enabled = enabled
+        self._ignorecase = ignorecase
+        self._pattern = pattern
+        self._example = example
+        self._remarks = remarks
+
+    def PrepareWidgets(self):
+        # チェックボックス
+        self._chkbx_enabled = self._Add_CheckBox("有効化", self._enabled)
+        self._chkbx_ignorecase = self._Add_CheckBox("大文字と小文字の違いを無視する", self._ignorecase)
+
+        # 入力フィールドのラベル
+        self._Add_FieldLabel("正規表現パターン :")
+        self._Add_FieldLabel("マッチング例 :")
+        self._Add_FieldLabel("備考 :")
+
+        # 入力フィールド
+        self._field_pattern = self._Add_InputField(self._pattern)
+        self._field_example = self._Add_InputField(self._example)
+        self._field_remarks = self._Add_InputField(self._remarks)
+
+    def _Window_Close_Event(self, event):
+        """
+        ウインドウを閉じる時の処理
+        """
+        # 何もせずに閉じる
+        self._parent_window.Enable()
+        self.Destroy()
+
+    def _Button_OK_Event(self, event):
+        """
+        OKボタンを押した時の処理
+        """
+        self._parent_window.Enable()
+
+        # 親タブに操作を追加してウインドウを閉じる
+        enabled = self._chkbx_enabled.GetValue()
+        ignorecase = self._chkbx_ignorecase.GetValue()
+        pattern = self._field_pattern.GetValue()
+        example = self._field_example.GetValue()
+        remarks = self._field_remarks.GetValue()
+
+        self._parent_tab.Add_Operation(self._operation, [self._position, enabled, ignorecase, pattern, example, remarks])
+
+        self.Destroy()
+
+    def _Initiate(self, parent_window, parent_tab, operation, position, window_minsize, window_maxsize):
+        """
+        ウインドウ中のウィジェット以外の要素を初期化する
+
+        Args:
+            parent_window (wx.Frame): 親ウインドウ
+            parent_tab (RegularExpressionsWindow.RE_SubPage): 親タブ
+            operation (pointer of function): AddItemやEditItemなどの行いたい操作
+            position (int): 操作対象の項目の位置
+            window_minsize (wx.Size): このウインドウの最小の大きさ
+            window_maxsize (wx.Size): このウインドウの最大の大きさ
+        """
+
+        self.Bind(wx.EVT_CLOSE, self._Window_Close_Event)
+
+        # 最小・最大サイズを設定
+        self.SetMinSize(window_minsize)
+        self.SetMaxSize(window_maxsize)
+
+        # 親ウインドウと親タブ、対象の操作、対象の場所を保持
+        self._parent_window = parent_window
+        self._parent_tab = parent_tab
+        self._operation = operation
+        self._position = position
+        # 他の操作がされないように親ウインドウを無効化
+        self._parent_window.Disable()
+
+        # 背景用パネル
+        self._background = wx.Panel(self)
+
+        # ウインドウ全体のSizer
+        self._sizer = wx.BoxSizer(wx.VERTICAL)
+        self._background.SetSizer(self._sizer)
+        self._subsizer = wx.BoxSizer(wx.VERTICAL)  # 四隅の余白用のSizer
+        self._sizer.Add(self._subsizer, proportion=1, flag=wx.EXPAND | wx.ALL, border=15)
+
+        # チェックボックス用のSizer
+        self._chkbx_sizer = wx.BoxSizer(wx.VERTICAL)
+        self._subsizer.Add(self._chkbx_sizer, flag=wx.EXPAND | wx.BOTTOM, border=10)
+
+        # ラベルと入力フィールド用のSizer
+        self._lf_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        self._subsizer.Add(self._lf_sizer, proportion=1, flag=wx.EXPAND)
+
+        # 入力フィールドのラベル用のSizer
+        self._label_sizer = wx.BoxSizer(wx.VERTICAL)
+        self._lf_sizer.Add(self._label_sizer, flag=wx.EXPAND | wx.RIGHT, border=5)
+
+        # 入力フィールド用のSizer
+        self._field_sizer = wx.BoxSizer(wx.VERTICAL)
+        self._lf_sizer.Add(self._field_sizer, proportion=1, flag=wx.EXPAND)
+
+        # 各種ボタン用のSizer
+        self._button_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        self._subsizer.Add(self._button_sizer, flag=wx.ALIGN_RIGHT)
+
+        # 各種ボタン
+        self._button_ok = wx.Button(self._background, label="OK")
+        self._button_ok.Bind(wx.EVT_BUTTON, self._Button_OK_Event)
+        self._button_sizer.Add(self._button_ok)
+        self._button_cancel = wx.Button(self._background, label="キャンセル")
+        self._button_cancel.Bind(wx.EVT_BUTTON, self._Window_Close_Event)
+        self._button_sizer.Add(self._button_cancel, flag=wx.LEFT, border=12)
+
+    def _Add_CheckBox(self, label, checked):
+        """
+        ウインドウにチェックボックスを追加する
+
+        Args:
+            label (str): チェックボックスのラベル
+            checked (bool): 最初からチェックされているか
+
+        Returns:
+            wx.CheckBox: 追加されたチェックボックス
+        """
+        chkbx = wx.CheckBox(self._background, label=label)
+        chkbx.SetValue(checked)
+        self._chkbx_sizer.Add(chkbx)
+
+        return chkbx
+
+    def _Add_FieldLabel(self, label):
+        """
+        ウインドウに入力フィールドのラベルを追加する
+
+        Args:
+            label (str): 入力フィールドのラベル
+        """
+        label = wx.StaticText(self._background, label=label)
+        self._label_sizer.Add(label, proportion=1)
+
+    def _Add_InputField(self, pre_filled_value=""):
+        """
+        ウインドウに入力フィールドを追加する
+
+        Args:
+            pre_filled_value (str, optional): 入力フィールドに初めから入力されている値
+
+        Returns:
+            wx.TextCtrl: 追加された入力フィールド
+        """
+        field_sizer = wx.BoxSizer(wx.VERTICAL)
+        self._field_sizer.Add(field_sizer, proportion=1, flag=wx.EXPAND)
+        input_field = wx.TextCtrl(self._background, value=pre_filled_value)
+        field_sizer.Add(input_field, flag=wx.EXPAND)
+
+        return input_field
+
+    def _Add_NumberInputField(self, pre_filled_value=2):
+        """
+        ウインドウに入力フィールドを追加する
+
+        Args:
+            pre_filled_value (int, optional): 入力フィールドに初めから入力されている値
+
+        Returns:
+            wx.SpinCtrl: 追加された入力フィールド
+        """
+        field_sizer = wx.BoxSizer(wx.VERTICAL)
+        self._field_sizer.Add(field_sizer, proportion=1, flag=wx.EXPAND)
+        input_field = wx.SpinCtrl(self._background, min=1, max=6, initial=pre_filled_value)
+        field_sizer.Add(input_field)
+
+        return input_field
+
+
+class InputItemInfoWindow_Replace(InputItemInfoWindow):
+    """
+    リストボックスの項目の情報を入力するウインドウ(置換ページ用)
+    """
+    def __init__(self, parent_window, title, window_minsize, window_maxsize, parent_tab, operation, position, enabled=True, ignorecase=False, pattern="", target="", example="", remarks=""):
+        super().__init__(parent_window, title, window_minsize, window_maxsize, parent_tab, operation, position, enabled, ignorecase, pattern, example, remarks)
+
+        self._target = target
+
+    def PrepareWidgets(self):
+        # チェックボックス
+        self._chkbx_enabled = self._Add_CheckBox("有効化", self._enabled)
+        self._chkbx_ignorecase = self._Add_CheckBox("大文字と小文字の違いを無視する", self._ignorecase)
+
+        # 入力フィールドのラベル
+        self._Add_FieldLabel("正規表現パターン :")
+        self._Add_FieldLabel("置換後の文字列 :")
+        self._Add_FieldLabel("マッチング例 :")
+        self._Add_FieldLabel("備考 :")
+
+        # 入力フィールド
+        self._field_pattern = self._Add_InputField(self._pattern)
+        self._field_target = self._Add_InputField(self._target)
+        self._field_example = self._Add_InputField(self._example)
+        self._field_remarks = self._Add_InputField(self._remarks)
+
+    def _Button_OK_Event(self, event):
+        """
+        OKボタンを押した時の処理
+        """
+        self._parent_window.Enable()
+
+        # 親タブに操作を追加してウインドウを閉じる
+        enabled = self._chkbx_enabled.GetValue()
+        ignorecase = self._chkbx_ignorecase.GetValue()
+        pattern = self._field_pattern.GetValue()
+        target = self._field_target.GetValue()
+        example = self._field_example.GetValue()
+        remarks = self._field_remarks.GetValue()
+
+        self._parent_tab.Add_Operation(self._operation, [self._position, enabled, ignorecase, pattern, target, example, remarks])
+
+        self.Destroy()
+
+
+class InputItemInfoWindow_Header(InputItemInfoWindow):
+    """
+    リストボックスの項目の情報を入力するウインドウ(置換ページ用)
+    """
+    def __init__(self, parent_window, title, window_minsize, window_maxsize, parent_tab, operation, position, enabled=True, ignorecase=False, pattern="", depth_count="", target_remove="", max_size=2, example="", remarks=""):
+        super().__init__(parent_window, title, window_minsize, window_maxsize, parent_tab, operation, position, enabled, ignorecase, pattern, example, remarks)
+
+        self._depth_count = depth_count
+        self._target_remove = target_remove
+        self._max_size = max_size
+
+    def PrepareWidgets(self):
+        # チェックボックス
+        self._chkbx_enabled = self._Add_CheckBox("有効化", self._enabled)
+        self._chkbx_ignorecase = self._Add_CheckBox("大文字と小文字の違いを無視する", self._ignorecase)
+
+        # 入力フィールドのラベル
+        self._Add_FieldLabel("正規表現パターン :")
+        self._Add_FieldLabel("見出しの深さ判定 :")
+        self._Add_FieldLabel("訳文から除く文字列 :")
+        self._Add_FieldLabel("見出しの最大サイズ :")
+        self._Add_FieldLabel("マッチング例 :")
+        self._Add_FieldLabel("備考 :")
+
+        # 入力フィールド
+        self._field_pattern = self._Add_InputField(self._pattern)
+        self._field_depth_count = self._Add_InputField(self._depth_count)
+        self._field_target_remove = self._Add_InputField(self._target_remove)
+        self._field_max_size = self._Add_NumberInputField(self._max_size)
+        self._field_example = self._Add_InputField(self._example)
+        self._field_remarks = self._Add_InputField(self._remarks)
+
+    def _Button_OK_Event(self, event):
+        """
+        OKボタンを押した時の処理
+        """
+        self._parent_window.Enable()
+
+        # 親タブに操作を追加してウインドウを閉じる
+        enabled = self._chkbx_enabled.GetValue()
+        ignorecase = self._chkbx_ignorecase.GetValue()
+        pattern = self._field_pattern.GetValue()
+        depth_count = self._field_depth_count.GetValue()
+        target_remove = self._field_target_remove.GetValue()
+        max_size = self._field_max_size.GetValue()
+        example = self._field_example.GetValue()
+        remarks = self._field_remarks.GetValue()
+
+        self._parent_tab.Add_Operation(self._operation, [self._position, enabled, ignorecase, pattern, depth_count, target_remove, max_size, example, remarks])
+
+        self.Destroy()
 
 
 class RegularExpressionsWindow(wx.Frame):
@@ -87,13 +362,19 @@ class RegularExpressionsWindow(wx.Frame):
 
         self.Show()
 
+    def Destroy(self):
+        """
+        ウインドウが閉じられたということをメインウインドウに知らせてから閉じる
+        """
+        self.__parent.res_window_destroyed = True
+        super().Destroy()
+
     def __Window_Close_Event(self, event):
         """
         ウインドウを閉じる時の処理
         """
         if not self.__TabIsEdited():
             # タブが一つも編集されていなければそのまま閉じる
-            self.__parent.res_window_destroyed = True
             self.Destroy()
 
         else:
@@ -107,7 +388,6 @@ class RegularExpressionsWindow(wx.Frame):
                 self.__Button_OK_Event(None)
             elif choice == wx.ID_NO:
                 # 何もせずに閉じる
-                self.__parent.res_window_destroyed = True
                 self.Destroy()
             # それ以外の場合(キャンセルボタンを押した場合)は何もしないしウインドウも閉じない
 
@@ -125,7 +405,6 @@ class RegularExpressionsWindow(wx.Frame):
         OKボタンを押した時の処理
         """
         self.__ApplyAndSaveSettings()
-        self.__parent.res_window_destroyed = True
         self.Destroy()
 
     def __Button_Apply_Event(self, event):
@@ -237,6 +516,7 @@ class RegularExpressionsWindow(wx.Frame):
         def __init__(self):
             super().__init__()
             self.menu_chkbx_show_markdown_settings = self.AppendCheckItem(RegularExpressionsWindow_MenuBar_Menu.SHOW_MARKDOWN_SETTINGS.value, "Markdown用の設定を表示する")
+            self.menu_chkbx_show_markdown_settings.Check(Settings.RegularExpressions().show_markdown_settings)  # 最初からチェックされているか
 
     class IntroductionPage(wx.Panel):
         """
@@ -267,7 +547,7 @@ class RegularExpressionsWindow(wx.Frame):
         """
         タブの基本設計
         """
-        def __init__(self, window, parent, Settings):
+        def __init__(self, window, parent, Settings, column_labels=res_default_column_labels, column_tips=res_default_column_tips, column_widths=res_default_column_widths):
             self._window = window
             super().__init__(parent)
             # 該当箇所の設定
@@ -291,11 +571,16 @@ class RegularExpressionsWindow(wx.Frame):
             self._chkbx_enabled_overall.Bind(wx.EVT_CHECKBOX, self._CheckBox_EnabledOverall_Event)
             self._sizer.Add(self._chkbx_enabled_overall, flag=wx.ALIGN_LEFT | wx.TOP | wx.LEFT, border=5)
 
+            # リストボックスのヘッダに関する情報を保存
+            self.__column_labels = column_labels
+            self.__column_tips = column_tips
+            self.__column_widths = column_widths
+
             # リストボックスと各種メニュー
             self._lb_sizer = wx.BoxSizer(wx.HORIZONTAL)
             self._lb_boxsizer = wx.BoxSizer(wx.VERTICAL)
             # チェックボックス付きのリストボックス
-            self._Prepare_ListBox()
+            self._Prepare_ListBox(self.__column_labels, self.__column_tips, self.__column_widths)
             self._lb_sizer.Add(self._lb_boxsizer, proportion=1, flag=wx.EXPAND | wx.RIGHT, border=3)
             # 各種メニュー
             splitter_label = "----------"
@@ -410,7 +695,9 @@ class RegularExpressionsWindow(wx.Frame):
             """
             追加ボタンを押した時の処理
             """
-            RegularExpressionsWindow.RE_SubPage.InputItemInfoWindow(self._window, "項目の追加", self, self._ListBox_AddItem, -1)
+            inputwindow = InputItemInfoWindow(self._window, "項目の追加", wx.Size(500, 250), wx.Size(1000, 250), self, self._ListBox_AddItem, -1)
+            inputwindow.PrepareWidgets()
+            inputwindow.Show()
 
         def _Button_Edit_Event(self, event):
             """
@@ -421,9 +708,11 @@ class RegularExpressionsWindow(wx.Frame):
 
             # 何かが選択されているなら編集を実行
             if index >= 0:
-                RegularExpressionsWindow.RE_SubPage.InputItemInfoWindow(
+                inputwindow = InputItemInfoWindow(
                     self._window,
                     "項目の編集",
+                    wx.Size(500, 250),
+                    wx.Size(1000, 250),
                     self,
                     self._ListBox_EditItem,
                     index,
@@ -432,6 +721,8 @@ class RegularExpressionsWindow(wx.Frame):
                     self._pattern_list_edited[index],
                     self._example_list_edited[index],
                     self._remarks_list_edited[index])
+                inputwindow.PrepareWidgets()
+                inputwindow.Show()
 
         def _Button_Delete_Event(self, event):
             """
@@ -497,6 +788,11 @@ class RegularExpressionsWindow(wx.Frame):
                 self._history_marker -= 1
             self._Apply_Operations()
 
+            # 何も選択されていないなら各種操作メニューを無効化
+            index = self._ListBox_SelectedItemIndex()
+            if index < 0:
+                self._ListBox_ItemDeselected_Event(None)
+
             # 親ウインドウのOK,Applyボタンの有効/無効を切り替える
             self._window.SwitchButtonsState()
             # 自身のボタンの有効/無効も切り替える
@@ -510,6 +806,11 @@ class RegularExpressionsWindow(wx.Frame):
             if self._history_marker < len(self._operation_list):
                 self._history_marker += 1
             self._Apply_Operations()
+
+            # 何も選択されていないなら各種操作メニューを無効化
+            index = self._ListBox_SelectedItemIndex()
+            if index < 0:
+                self._ListBox_ItemDeselected_Event(None)
 
             # 親ウインドウのOK,Applyボタンの有効/無効を切り替える
             self._window.SwitchButtonsState()
@@ -531,13 +832,13 @@ class RegularExpressionsWindow(wx.Frame):
             else:
                 self._redo_button.Enable()
 
-        def _Prepare_ListBox(self):
+        def _Prepare_ListBox(self, column_labels, column_tips, column_widths):
             """
             リストボックスを用意する
             """
             # ULC.ULC_HAS_VARIABLE_ROW_HEIGHT と ULC.ULC_REPORT を兼ね備えていないとチェックボックスなどのウィジェットを追加できない
             self._listbox = ULC.UltimateListCtrl(self, agwStyle=ULC.ULC_HAS_VARIABLE_ROW_HEIGHT | ULC.ULC_REPORT | ULC.ULC_VRULES | ULC.ULC_SINGLE_SEL)
-            self._ListBox_PrepareColumns()  # 列を追加
+            self._ListBox_PrepareColumns(column_labels, column_tips, column_widths)  # 列を追加
             self._chkbx_enable_list = []        # 有効化のチェックボックスのリスト
             self._chkbx_ignorecase_list = []    # 大文字小文字無視のチェックボックスのリスト
             self._ListBox_PrepareItems()    # 項目を追加
@@ -554,11 +855,11 @@ class RegularExpressionsWindow(wx.Frame):
 
             # 古いリストボックスをギリギリまで保持しておくことで画面のチラつきを抑える
             temp = self._listbox        # 古いリストボックスを退避
-            self._Prepare_ListBox()     # 新しいリストボックスを用意
+            self._Prepare_ListBox(self.__column_labels, self.__column_tips, self.__column_widths)   # 新しいリストボックスを用意
             self._lb_boxsizer.Layout()  # 新しいリストボックスを配置
             temp.Destroy()              # 古いリストボックスを破棄
 
-        def _ListBox_PrepareColumns(self):
+        def _ListBox_PrepareColumns(self, column_labels, column_tips, column_widths):
             """
             リストボックスに列を一通り追加する
             """
@@ -583,16 +884,9 @@ class RegularExpressionsWindow(wx.Frame):
                 info._format = ULC.ULC_FORMAT_LEFT
                 return info
 
-            self._listbox.InsertColumnInfo(0, gen_column_header("", "全ての項目を一括で切り替えます。", 1, mask | ULC.ULC_MASK_CHECK))
-            self._listbox.SetColumnWidth(0, 25)     # 幅を設定
-            self._listbox.InsertColumnInfo(1, gen_column_header("大小無視", "大文字と小文字を区別するかを管理します。\nこのヘッダのチェックボックスで全ての項目を一括で切り替えられます。", 1))
-            self._listbox.SetColumnWidth(1, 60)
-            self._listbox.InsertColumnInfo(2, gen_column_header("正規表現パターン", "このパターンに適合する行に、対応する操作が行われます。"))
-            self._listbox.SetColumnWidth(2, 225)
-            self._listbox.InsertColumnInfo(3, gen_column_header("マッチング例", "正規表現パターンに適合する文字列の例です。"))
-            self._listbox.SetColumnWidth(3, 250)
-            self._listbox.InsertColumnInfo(4, gen_column_header("備考", "正規表現パターンに対する備考や注意を書いてください。"))
-            self._listbox.SetColumnWidth(4, 350)
+            for i in range(len(column_labels)):
+                self._listbox.InsertColumnInfo(i, gen_column_header(column_labels[i], column_tips[i]))
+                self._listbox.SetColumnWidth(i, column_widths[i])   # 幅を設定
 
         def _ListBox_PrepareItems(self):
             """
@@ -727,17 +1021,31 @@ class RegularExpressionsWindow(wx.Frame):
             # 画面の更新
             self._Refresh_ListBox()
 
+            def stay_within_range(index):
+                """
+                入力indexの値をリストボックスの項目の範囲内に収める
+
+                Args:
+                    index (int): 対象の値
+
+                Returns:
+                    int: リストボックスの項目の範囲内に収められたindex
+                """
+                index = max(0, index)
+                index = min(index, len(self._enabled_list_edited) - 1)
+                return index
+
             # 最後の操作ごとの特別な処理
             if self._history_marker > 0:
                 history_index = self._history_marker - 1
                 # 最後の操作が編集なら、編集した項目を選択し直す
                 if self._operation_list[history_index] == self._ListBox_EditItem:
-                    self._listbox.Select(self._operation_args[history_index][0])
+                    self._listbox.Select(stay_within_range(self._operation_args[history_index][0]))
                 # 最後の操作が削除なら、削除した位置に来た項目を選択し直す
                 elif self._operation_list[history_index] == self._ListBox_RemoveItem:
-                    self._listbox.Select(self._operation_args[history_index])
+                    self._listbox.Select(stay_within_range(self._operation_args[history_index]))
                 elif self._operation_list[history_index] == self._ListBox_MoveItem:
-                    self._listbox.Select(self._operation_args[history_index][1])
+                    self._listbox.Select(stay_within_range(self._operation_args[history_index][1]))
 
         def _Set_EnabledOverall(self, state):
             """
@@ -851,108 +1159,6 @@ class RegularExpressionsWindow(wx.Frame):
             del self._example_list_edited[position]
             del self._remarks_list_edited[position]
 
-        class InputItemInfoWindow(wx.Frame):
-            def __init__(self, parent_window, title, parent_tab, operation, position, enabled=True, ignorecase=False, pattern="", example="", remarks=""):
-                super().__init__(parent_window, title=title, size=(500, 250), style=wx.CAPTION | wx.CLOSE_BOX | wx.RESIZE_BORDER | wx.FRAME_NO_TASKBAR | wx.FRAME_FLOAT_ON_PARENT)
-
-                self.Bind(wx.EVT_CLOSE, self.__Window_Close_Event)
-
-                # 親ウインドウと親タブ、対象の操作、対象の場所を保持
-                self.__parent_window = parent_window
-                self.__parent_tab = parent_tab
-                self.__operation = operation
-                self.__position = position
-                # 他の操作がされないように親ウインドウを無効化
-                self.__parent_window.Disable()
-
-                # 最小・最大サイズを設定
-                self.SetMinSize(wx.Size(500, 250))
-                self.SetMaxSize(wx.Size(1000, 250))
-
-                background = wx.Panel(self)
-
-                sizer = wx.BoxSizer(wx.VERTICAL)
-                background.SetSizer(sizer)
-                subsizer = wx.BoxSizer(wx.VERTICAL)
-                sizer.Add(subsizer, proportion=1, flag=wx.EXPAND | wx.ALL, border=15)
-
-                # チェックボックス
-                self.__chkbx_enabled = wx.CheckBox(background, label="有効化した状態で追加する")
-                self.__chkbx_enabled.SetValue(enabled)
-                subsizer.Add(self.__chkbx_enabled)
-                self.__chkbx_ignorecase = wx.CheckBox(background, label="大文字と小文字の違いを無視する")
-                self.__chkbx_ignorecase.SetValue(ignorecase)
-                subsizer.Add(self.__chkbx_ignorecase, flag=wx.BOTTOM, border=10)
-
-                lf_sizer = wx.BoxSizer(wx.HORIZONTAL)
-                subsizer.Add(lf_sizer, proportion=1, flag=wx.EXPAND)
-
-                # 入力フィールドのラベル
-                label_sizer = wx.BoxSizer(wx.VERTICAL)
-                lf_sizer.Add(label_sizer, flag=wx.EXPAND | wx.RIGHT, border=5)
-                label_pattern = wx.StaticText(background, label="正規表現パターン :")
-                label_sizer.Add(label_pattern, proportion=1)
-                label_example = wx.StaticText(background, label="マッチング例 :")
-                label_sizer.Add(label_example, proportion=1)
-                label_remarks = wx.StaticText(background, label="備考 :")
-                label_sizer.Add(label_remarks, proportion=1)
-
-                # 入力フィールド
-                field_sizer = wx.BoxSizer(wx.VERTICAL)
-                lf_sizer.Add(field_sizer, proportion=1, flag=wx.EXPAND)
-
-                field_pattern_sizer = wx.BoxSizer(wx.VERTICAL)
-                field_sizer.Add(field_pattern_sizer, proportion=1, flag=wx.EXPAND)
-                self.__field_pattern = wx.TextCtrl(background, value=pattern)
-                field_pattern_sizer.Add(self.__field_pattern, flag=wx.EXPAND)
-
-                field_example_sizer = wx.BoxSizer(wx.VERTICAL)
-                field_sizer.Add(field_example_sizer, proportion=1, flag=wx.EXPAND)
-                self.__field_example = wx.TextCtrl(background, value=example)
-                field_example_sizer.Add(self.__field_example, flag=wx.EXPAND)
-
-                field_remarks_sizer = wx.BoxSizer(wx.VERTICAL)
-                field_sizer.Add(field_remarks_sizer, proportion=1, flag=wx.EXPAND)
-                self.__field_remarks = wx.TextCtrl(background, value=remarks)
-                field_remarks_sizer.Add(self.__field_remarks, flag=wx.EXPAND)
-
-                # 各種ボタン
-                button_sizer = wx.BoxSizer(wx.HORIZONTAL)
-                subsizer.Add(button_sizer, flag=wx.ALIGN_RIGHT)
-                self.__button_ok = wx.Button(background, label="OK")
-                self.__button_ok.Bind(wx.EVT_BUTTON, self.__Button_OK_Event)
-                button_sizer.Add(self.__button_ok)
-                self.__button_cancel = wx.Button(background, label="キャンセル")
-                self.__button_cancel.Bind(wx.EVT_BUTTON, self.__Window_Close_Event)
-                button_sizer.Add(self.__button_cancel, flag=wx.LEFT, border=12)
-
-                self.Show()
-
-            def __Window_Close_Event(self, event):
-                """
-                ウインドウを閉じる時の処理
-                """
-                # 何もせずに閉じる
-                self.__parent_window.Enable()
-                self.Destroy()
-
-            def __Button_OK_Event(self, event):
-                """
-                OKボタンを押した時の処理
-                """
-                self.__parent_window.Enable()
-
-                # 親タブに操作を追加してウインドウを閉じる
-                self.__enabled = self.__chkbx_enabled.GetValue()
-                self.__ignorecase = self.__chkbx_ignorecase.GetValue()
-                self.__pattern = self.__field_pattern.GetValue()
-                self.__example = self.__field_example.GetValue()
-                self.__remarks = self.__field_remarks.GetValue()
-
-                self.__parent_tab.Add_Operation(self.__operation, [self.__position, self.__enabled, self.__ignorecase, self.__pattern, self.__example, self.__remarks])
-
-                self.Destroy()
-
     class StartLinesPage(RE_SubPage):
         """
         開始条件を扱うページ
@@ -974,14 +1180,169 @@ class RegularExpressionsWindow(wx.Frame):
         def __init__(self, window, parent):
             super().__init__(window, parent, Settings.RegularExpressions.IgnoreLines())
 
-    class StandardReplaceLinesPage(RE_SubPage):
+    class ReplaceLinesPage(RE_SubPage):
+        """
+        置換条件を扱うページのスーパークラス
+        """
+        def __init__(self, window, parent, Settings, column_labels=res_replace_column_labels, column_tips=res_replace_column_tips, column_widths=res_replace_column_widths):
+            super().__init__(window, parent, Settings, column_labels, column_tips, column_widths)
+
+        def _Button_Add_Event(self, event):
+            """
+            追加ボタンを押した時の処理
+            """
+            inputwindow = InputItemInfoWindow_Replace(self._window, "項目の追加", wx.Size(500, 280), wx.Size(1000, 280), self, self._ListBox_AddItem, -1)
+            inputwindow.PrepareWidgets()
+            inputwindow.Show()
+
+        def _Button_Edit_Event(self, event):
+            """
+            編集ボタンを押した時の処理
+            """
+            # 選択された項目のインデックスを取得
+            index = self._ListBox_SelectedItemIndex()
+
+            # 何かが選択されているなら編集を実行
+            if index >= 0:
+                inputwindow = InputItemInfoWindow_Replace(
+                    self._window,
+                    "項目の編集",
+                    wx.Size(500, 280),
+                    wx.Size(1000, 280),
+                    self,
+                    self._ListBox_EditItem,
+                    index,
+                    self._enabled_list_edited[index],
+                    self._ignorecase_list_edited[index],
+                    self._pattern_list_edited[index],
+                    self._target_list_edited[index],
+                    self._example_list_edited[index],
+                    self._remarks_list_edited[index])
+                inputwindow.PrepareWidgets()
+                inputwindow.Show()
+
+        def _ListBox_PrepareItems(self):
+            """
+            リストボックスに既存の項目を並べる
+            """
+            for i in range(len(self._enabled_list_edited)):
+                # 一行ごとに色を互い違いにする
+                if i % 2:
+                    color = wx.Colour(230, 230, 230)    # 濃い灰色
+                else:
+                    color = wx.Colour(250, 250, 250)    # 淡い灰色
+
+                # 行の挿入と色の設定
+                self._listbox.InsertStringItem(i, "")
+                self._listbox.SetItemBackgroundColour(i, color)
+
+                # チェックボックスの用意
+                chkbx_enable = wx.CheckBox(self._listbox, id=i)
+                chkbx_enable.Bind(wx.EVT_CHECKBOX, self._CheckBox_Enable_Event)
+                chkbx_ignorecase = wx.CheckBox(self._listbox, id=i)
+                chkbx_ignorecase.Bind(wx.EVT_CHECKBOX, self._CheckBox_IgnoreCase_Event)
+                chkbx_enable.SetValue(self._enabled_list_edited[i])   # 設定に基づいて初期値を設定
+                chkbx_ignorecase.SetValue(self._ignorecase_list_edited[i])
+                chkbx_enable.SetBackgroundColour(color)
+                chkbx_ignorecase.SetBackgroundColour(color)
+                self._chkbx_enable_list.append(chkbx_enable)    # 後から追跡できるようにリストにセット
+                self._chkbx_ignorecase_list.append(chkbx_ignorecase)
+
+                # 行の各列へのアイテムの追加
+                # どうやらヘッダとセルのアラインメントを別々で設定することはできないらしい……
+                # と思っていたが、それ以外の操作もできている様子がないので、
+                # できることはできるがなにか面倒な儀式を踏まないとできなさそうな予感
+                self._listbox.SetItemWindow(i, 0, chkbx_enable)
+                self._listbox.SetItemWindow(i, 1, chkbx_ignorecase)
+                self._listbox.SetStringItem(i, 2, self._pattern_list_edited[i])
+                self._listbox.SetStringItem(i, 3, self._target_list_edited[i])
+                self._listbox.SetStringItem(i, 4, self._example_list_edited[i])
+                self._listbox.SetStringItem(i, 5, self._remarks_list_edited[i])
+
+        def _Initiate_SettingLists(self):
+            """
+            一時設定を、編集ウインドウを開いた当初のものに戻す
+            """
+            # 共通する処理はスーパークラスのメソッドで行う
+            super()._Initiate_SettingLists()
+            # 設定から値をコピーしていない場合、初期値としてコピーする
+            # コピーしてからの値の変更で設定ごと変えられないように、deepcopyでコピー
+            if not hasattr(self, "_target_list_initial"):
+                self._target_list_initial = deepcopy(self._Settings.target_list)
+            # 初期設定を反映
+            self._target_list_edited = deepcopy(self._target_list_initial)
+
+        def ApplySettings(self):
+            """
+            設定に値の変更を適用する
+            """
+            # 共通する処理はスーパークラスのメソッドで行う
+            super().ApplySettings()
+            # コピーしてからの値の変更で設定ごと変えられないように、deepcopyでコピー
+            self._Settings.target_list = deepcopy(self._target_list_edited)
+
+        def _ListBox_MoveItem(self, arguments):
+            """
+            リストボックスの要素(一つ)を移動する
+
+            他の要素は移動した要素に合わせてずれる
+
+            Args:
+                arguments: 引数のリスト(0: 移動させたい要素の元の位置(int), 1: 移動先の位置(int))
+            """
+            # 共通する処理はスーパークラスのメソッドで行う
+            super()._ListBox_MoveItem(arguments)
+            # 引数リストから個々の値を取得
+            item_position = arguments[0]
+            target_position = arguments[1]
+
+            # 要素を移動
+            move_listitem(self._target_list_edited, item_position, target_position)
+
+        def _ListBox_AddItem(self, arguments):
+            """
+            リストボックスに要素を追加する
+
+            Args:
+                arguments: 引数のリスト(0: 挿入位置(int), 1: 有効/無効(bool), 2: 大文字小文字無視(bool), 3: 正規表現パターン(str), 4: 置換後の文字列(str), 5: マッチ例(str), 6: 備考(str))
+            """
+            # 引数リストから個々の値を取得
+            position = arguments[0]
+            enabled = arguments[1]
+            ignorecase = arguments[2]
+            pattern = arguments[3]
+            target = arguments[4]
+            example = arguments[5]
+            remarks = arguments[6]
+            # 共通する処理はスーパークラスのメソッドで行う
+            super()._ListBox_AddItem([position, enabled, ignorecase, pattern, example, remarks])
+
+            # 挿入位置の指定がリストの長さを逸脱しているか、負の値のときは末尾に指定
+            if (position > len(self._enabled_list_edited)) or position < 0:
+                position = len(self._enabled_list_edited)
+
+            # 要素を挿入
+            self._target_list_edited.insert(position, target)
+
+        def _ListBox_RemoveItem(self, position):
+            """
+            指定した位置の要素を削除する
+
+            Args:
+                position (int): 削除したい要素の位置
+            """
+            # 共通する処理はスーパークラスのメソッドで行う
+            super()._ListBox_RemoveItem(position)
+            del self._target_list_edited[position]
+
+    class StandardReplaceLinesPage(ReplaceLinesPage):
         """
         置換条件を扱うページ
         """
         def __init__(self, window, parent):
             super().__init__(window, parent, Settings.RegularExpressions.ReplaceParts.Standard())
 
-    class MarkdownReplaceLinesPage(RE_SubPage):
+    class MarkdownReplaceLinesPage(ReplaceLinesPage):
         """
         置換条件(Markdown)を扱うページ
         """
@@ -1014,7 +1375,173 @@ class RegularExpressionsWindow(wx.Frame):
         置換条件を扱うページ
         """
         def __init__(self, window, parent):
-            super().__init__(window, parent, Settings.RegularExpressions.HeaderLines())
+            super().__init__(window, parent, Settings.RegularExpressions.HeaderLines(), res_header_column_labels, res_header_column_tips, res_header_column_widths)
+
+        def _Button_Add_Event(self, event):
+            """
+            追加ボタンを押した時の処理
+            """
+            inputwindow = InputItemInfoWindow_Header(self._window, "項目の追加", wx.Size(500, 340), wx.Size(1000, 340), self, self._ListBox_AddItem, -1)
+            inputwindow.PrepareWidgets()
+            inputwindow.Show()
+
+        def _Button_Edit_Event(self, event):
+            """
+            編集ボタンを押した時の処理
+            """
+            # 選択された項目のインデックスを取得
+            index = self._ListBox_SelectedItemIndex()
+
+            # 何かが選択されているなら編集を実行
+            if index >= 0:
+                inputwindow = InputItemInfoWindow_Header(
+                    self._window,
+                    "項目の編集",
+                    wx.Size(500, 340),
+                    wx.Size(1000, 340),
+                    self,
+                    self._ListBox_EditItem,
+                    index,
+                    self._enabled_list_edited[index],
+                    self._ignorecase_list_edited[index],
+                    self._pattern_list_edited[index],
+                    self._depth_count_list_edited[index],
+                    self._target_remove_list_edited[index],
+                    self._max_size_list_edited[index],
+                    self._example_list_edited[index],
+                    self._remarks_list_edited[index])
+                inputwindow.PrepareWidgets()
+                inputwindow.Show()
+
+        def _ListBox_PrepareItems(self):
+            """
+            リストボックスに既存の項目を並べる
+            """
+            for i in range(len(self._enabled_list_edited)):
+                # 一行ごとに色を互い違いにする
+                if i % 2:
+                    color = wx.Colour(230, 230, 230)    # 濃い灰色
+                else:
+                    color = wx.Colour(250, 250, 250)    # 淡い灰色
+
+                # 行の挿入と色の設定
+                self._listbox.InsertStringItem(i, "")
+                self._listbox.SetItemBackgroundColour(i, color)
+
+                # チェックボックスの用意
+                chkbx_enable = wx.CheckBox(self._listbox, id=i)
+                chkbx_enable.Bind(wx.EVT_CHECKBOX, self._CheckBox_Enable_Event)
+                chkbx_ignorecase = wx.CheckBox(self._listbox, id=i)
+                chkbx_ignorecase.Bind(wx.EVT_CHECKBOX, self._CheckBox_IgnoreCase_Event)
+                chkbx_enable.SetValue(self._enabled_list_edited[i])   # 設定に基づいて初期値を設定
+                chkbx_ignorecase.SetValue(self._ignorecase_list_edited[i])
+                chkbx_enable.SetBackgroundColour(color)
+                chkbx_ignorecase.SetBackgroundColour(color)
+                self._chkbx_enable_list.append(chkbx_enable)    # 後から追跡できるようにリストにセット
+                self._chkbx_ignorecase_list.append(chkbx_ignorecase)
+
+                # 行の各列へのアイテムの追加
+                # どうやらヘッダとセルのアラインメントを別々で設定することはできないらしい……
+                # と思っていたが、それ以外の操作もできている様子がないので、
+                # できることはできるがなにか面倒な儀式を踏まないとできなさそうな予感
+                self._listbox.SetItemWindow(i, 0, chkbx_enable)
+                self._listbox.SetItemWindow(i, 1, chkbx_ignorecase)
+                self._listbox.SetStringItem(i, 2, self._pattern_list_edited[i])
+                self._listbox.SetStringItem(i, 3, self._depth_count_list_edited[i])
+                self._listbox.SetStringItem(i, 4, self._target_remove_list_edited[i])
+                self._listbox.SetStringItem(i, 5, str(self._max_size_list_edited[i]))
+                self._listbox.SetStringItem(i, 6, self._example_list_edited[i])
+                self._listbox.SetStringItem(i, 7, self._remarks_list_edited[i])
+
+        def _Initiate_SettingLists(self):
+            """
+            一時設定を、編集ウインドウを開いた当初のものに戻す
+            """
+            # 共通する処理はスーパークラスのメソッドで行う
+            super()._Initiate_SettingLists()
+            # 設定から値をコピーしていない場合、初期値としてコピーする
+            # コピーしてからの値の変更で設定ごと変えられないように、deepcopyでコピー
+            if not hasattr(self, "_depth_count_list_initial"):
+                self._depth_count_list_initial = deepcopy(self._Settings.depth_count_list)
+                self._target_remove_list_initial = deepcopy(self._Settings.target_remove_list)
+                self._max_size_list_initial = deepcopy(self._Settings.max_size_list)
+            # 初期設定を反映
+            self._depth_count_list_edited = deepcopy(self._depth_count_list_initial)
+            self._target_remove_list_edited = deepcopy(self._target_remove_list_initial)
+            self._max_size_list_edited = deepcopy(self._max_size_list_initial)
+
+        def ApplySettings(self):
+            """
+            設定に値の変更を適用する
+            """
+            # 共通する処理はスーパークラスのメソッドで行う
+            super().ApplySettings()
+            # コピーしてからの値の変更で設定ごと変えられないように、deepcopyでコピー
+            self._Settings.depth_count_list = deepcopy(self._depth_count_list_edited)
+            self._Settings.target_remove_list = deepcopy(self._target_remove_list_edited)
+            self._Settings.max_size_list = deepcopy(self._max_size_list_edited)
+
+        def _ListBox_MoveItem(self, arguments):
+            """
+            リストボックスの要素(一つ)を移動する
+
+            他の要素は移動した要素に合わせてずれる
+
+            Args:
+                arguments: 引数のリスト(0: 移動させたい要素の元の位置(int), 1: 移動先の位置(int))
+            """
+            # 共通する処理はスーパークラスのメソッドで行う
+            super()._ListBox_MoveItem(arguments)
+            # 引数リストから個々の値を取得
+            item_position = arguments[0]
+            target_position = arguments[1]
+
+            # 要素を移動
+            move_listitem(self._depth_count_list_edited, item_position, target_position)
+            move_listitem(self._target_remove_list_edited, item_position, target_position)
+            move_listitem(self._max_size_list_edited, item_position, target_position)
+
+        def _ListBox_AddItem(self, arguments):
+            """
+            リストボックスに要素を追加する
+
+            Args:
+                arguments: 引数のリスト(0: 挿入位置(int), 1: 有効/無効(bool), 2: 大文字小文字無視(bool), 3: 正規表現パターン(str), 4: 見出しの深さ判定(str), 5: 訳文から除く文字列(str), 6: 見出しの最大サイズ(int), 7: マッチ例(str), 8: 備考(str))
+            """
+            # 引数リストから個々の値を取得
+            position = arguments[0]
+            enabled = arguments[1]
+            ignorecase = arguments[2]
+            pattern = arguments[3]
+            depth_count = arguments[4]
+            target_remove = arguments[5]
+            max_size = arguments[6]
+            example = arguments[7]
+            remarks = arguments[8]
+            # 共通する処理はスーパークラスのメソッドで行う
+            super()._ListBox_AddItem([position, enabled, ignorecase, pattern, example, remarks])
+
+            # 挿入位置の指定がリストの長さを逸脱しているか、負の値のときは末尾に指定
+            if (position > len(self._enabled_list_edited)) or position < 0:
+                position = len(self._enabled_list_edited)
+
+            # 要素を挿入
+            self._depth_count_list_edited.insert(position, depth_count)
+            self._target_remove_list_edited.insert(position, target_remove)
+            self._max_size_list_edited.insert(position, max_size)
+
+        def _ListBox_RemoveItem(self, position):
+            """
+            指定した位置の要素を削除する
+
+            Args:
+                position (int): 削除したい要素の位置
+            """
+            # 共通する処理はスーパークラスのメソッドで行う
+            super()._ListBox_RemoveItem(position)
+            del self._depth_count_list_edited[position]
+            del self._target_remove_list_edited[position]
+            del self._max_size_list_edited[position]
 
 
 class RegularExpressions:
