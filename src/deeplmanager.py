@@ -89,7 +89,12 @@ class DeepLManager:
         # DeepLに接続
         self.__webDriver.get("https://www.deepl.com/translator")
 
-    def translate(self, text, lang="ja-JA", first_wait_secs=10, wait_secs_max=60):
+        # 訳文の言語を選択するタブを開く
+        self.__webDriver.find_element_by_xpath("//button[@dl-test='translator-target-lang-btn']").click()
+        # 訳文の言語のボタンを押す
+        self.__webDriver.find_element_by_xpath("//button[@dl-test='translator-lang-option-" + Settings().target_language_for_translate + "']").click()
+
+    def translate(self, text, first_wait_secs=10, wait_secs_max=60):
         """
         DeepLで翻訳を行う
 
@@ -104,11 +109,6 @@ class DeepLManager:
         """
         # DeepLのページが開かれていなければ開く
         self.openDeepLPage()
-
-        # 訳文の言語を選択するタブを開く
-        self.__webDriver.find_element_by_xpath("//button[@dl-test='translator-target-lang-btn']").click()
-        # 訳文の言語のボタンを押す
-        self.__webDriver.find_element_by_xpath("//button[@dl-test='translator-lang-option-" + lang + "']").click()
 
         # 原文の入力欄を取得
         source_textarea = self.__webDriver.find_element_by_css_selector(

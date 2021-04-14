@@ -570,6 +570,11 @@ class RegularExpressionsWindow(wx.Frame):
             self._chkbx_enabled_overall.SetValue(self._enabled_overall_edited)
             self._chkbx_enabled_overall.Bind(wx.EVT_CHECKBOX, self._CheckBox_EnabledOverall_Event)
             self._sizer.Add(self._chkbx_enabled_overall, flag=wx.ALIGN_LEFT | wx.TOP | wx.LEFT, border=5)
+            # ヒット行出力のチェックボックス
+            self._chkbx_output_hit_lines = wx.CheckBox(self, wx.ID_ANY, "この条件に適合した行をテキストファイルに出力する")
+            self._chkbx_output_hit_lines.SetValue(self._output_hit_lines_edited)
+            self._chkbx_output_hit_lines.Bind(wx.EVT_CHECKBOX, self._CheckBox_OutputHitLines_Event)
+            self._sizer.Add(self._chkbx_output_hit_lines, flag=wx.ALIGN_LEFT | wx.LEFT, border=5)
 
             # リストボックスのヘッダに関する情報を保存
             self.__column_labels = column_labels
@@ -667,6 +672,17 @@ class RegularExpressionsWindow(wx.Frame):
             # 履歴に操作を追加
             self.Add_Operation(self._Set_EnabledOverall, enabled_overall)
 
+        def _CheckBox_OutputHitLines_Event(self, event):
+            """
+            全体の有効化のチェックボックスを押した時の処理
+            """
+            # チェックボックスから値を取得し、一時設定に反映
+            output_hit_lines = self._chkbx_output_hit_lines.GetValue()
+            self._output_hit_lines_edited = output_hit_lines
+
+            # 履歴に操作を追加
+            self.Add_Operation(self._Set_OutputHitLines, output_hit_lines)
+
         def _CheckBox_Enable_Event(self, event):
             """
             リスト項目の有効化のチェックボックスを押した時の処理
@@ -695,7 +711,10 @@ class RegularExpressionsWindow(wx.Frame):
             """
             追加ボタンを押した時の処理
             """
-            inputwindow = InputItemInfoWindow(self._window, "項目の追加", wx.Size(500, 250), wx.Size(1000, 250), self, self._ListBox_AddItem, -1)
+            # 選択された項目のインデックスを取得 何も選択されていないなら負の値になり、末尾に追加される
+            index = self._ListBox_SelectedItemIndex()
+
+            inputwindow = InputItemInfoWindow(self._window, "項目の追加", wx.Size(500, 250), wx.Size(1000, 250), self, self._ListBox_AddItem, index)
             inputwindow.PrepareWidgets()
             inputwindow.Show()
 
@@ -933,6 +952,7 @@ class RegularExpressionsWindow(wx.Frame):
             # コピーしてからの値の変更で設定ごと変えられないように、deepcopyでコピー
             if not hasattr(self, "_enabled_overall_initial"):
                 self._enabled_overall_initial = self._Settings.enabled_overall
+                self._output_hit_lines_initial = self._Settings.output_hit_lines
                 self._enabled_list_initial = deepcopy(self._Settings.enabled_list)
                 self._ignorecase_list_initial = deepcopy(self._Settings.ignorecase_list)
                 self._pattern_list_initial = deepcopy(self._Settings.pattern_list)
@@ -940,6 +960,7 @@ class RegularExpressionsWindow(wx.Frame):
                 self._remarks_list_initial = deepcopy(self._Settings.remarks_list)
             # 初期設定を反映
             self._enabled_overall_edited = self._enabled_overall_initial
+            self._output_hit_lines_edited = self._output_hit_lines_initial
             self._enabled_list_edited = deepcopy(self._enabled_list_initial)
             self._ignorecase_list_edited = deepcopy(self._ignorecase_list_initial)
             self._pattern_list_edited = deepcopy(self._pattern_list_initial)
@@ -952,6 +973,7 @@ class RegularExpressionsWindow(wx.Frame):
             """
             # コピーしてからの値の変更で設定ごと変えられないように、deepcopyでコピー
             self._Settings.enabled_overall = self._enabled_overall_edited
+            self._Settings.output_hit_lines = self._output_hit_lines_edited
             self._Settings.enabled_list = deepcopy(self._enabled_list_edited)
             self._Settings.ignorecase_list = deepcopy(self._ignorecase_list_edited)
             self._Settings.pattern_list = deepcopy(self._pattern_list_edited)
@@ -1038,8 +1060,8 @@ class RegularExpressionsWindow(wx.Frame):
             # 最後の操作ごとの特別な処理
             if self._history_marker > 0:
                 history_index = self._history_marker - 1
-                # 最後の操作が編集なら、編集した項目を選択し直す
-                if self._operation_list[history_index] == self._ListBox_EditItem:
+                # 最後の操作が追加か編集なら、編集した項目を選択し直す
+                if self._operation_list[history_index] == self._ListBox_AddItem or self._operation_list[history_index] == self._ListBox_EditItem:
                     self._listbox.Select(stay_within_range(self._operation_args[history_index][0]))
                 # 最後の操作が削除なら、削除した位置に来た項目を選択し直す
                 elif self._operation_list[history_index] == self._ListBox_RemoveItem:
@@ -1056,6 +1078,16 @@ class RegularExpressionsWindow(wx.Frame):
             """
             self._enabled_overall_edited = state
             self._chkbx_enabled_overall.SetValue(state)
+
+        def _Set_OutputHitLines(self, state):
+            """
+            条件に適合した行の出力の有効/無効を切り替える
+
+            Args:
+                state (bool): 有効/無効
+            """
+            self._output_hit_lines_edited = state
+            self._chkbx_output_hit_lines.SetValue(state)
 
         def _ListBox_SwitchEnabled(self, arguments):
             """リストボックスの要素(一つ)の有効/無効を切り替える
@@ -1191,7 +1223,10 @@ class RegularExpressionsWindow(wx.Frame):
             """
             追加ボタンを押した時の処理
             """
-            inputwindow = InputItemInfoWindow_Replace(self._window, "項目の追加", wx.Size(500, 280), wx.Size(1000, 280), self, self._ListBox_AddItem, -1)
+            # 選択された項目のインデックスを取得 何も選択されていないなら負の値になり、末尾に追加される
+            index = self._ListBox_SelectedItemIndex()
+
+            inputwindow = InputItemInfoWindow_Replace(self._window, "項目の追加", wx.Size(500, 280), wx.Size(1000, 280), self, self._ListBox_AddItem, index)
             inputwindow.PrepareWidgets()
             inputwindow.Show()
 
@@ -1381,7 +1416,10 @@ class RegularExpressionsWindow(wx.Frame):
             """
             追加ボタンを押した時の処理
             """
-            inputwindow = InputItemInfoWindow_Header(self._window, "項目の追加", wx.Size(500, 340), wx.Size(1000, 340), self, self._ListBox_AddItem, -1)
+            # 選択された項目のインデックスを取得 何も選択されていないなら負の値になり、末尾に追加される
+            index = self._ListBox_SelectedItemIndex()
+
+            inputwindow = InputItemInfoWindow_Header(self._window, "項目の追加", wx.Size(500, 340), wx.Size(1000, 340), self, self._ListBox_AddItem, index)
             inputwindow.PrepareWidgets()
             inputwindow.Show()
 
@@ -1542,133 +1580,3 @@ class RegularExpressionsWindow(wx.Frame):
             del self._depth_count_list_edited[position]
             del self._target_remove_list_edited[position]
             del self._max_size_list_edited[position]
-
-
-class RegularExpressions:
-    # このリストに含まれる正規表現に当てはまる文字列から翻訳を開始する
-    start_lines = [r"[0-9]+\s*\.?\s*introduction", r"introduction$"]
-    # このリストに含まれる正規表現に当てはまる文字列で翻訳を打ち切る
-    end_lines = [r"^references?$"]
-
-    # このリストに含まれる正規表現に当てはまる文字列は無視する
-    ignore_lines = [
-        r"^\s*ACM Trans",
-        r"^\s*[0-9]*:[0-9]*\s*$",   # ページ数
-        r"^\s*[0-9]*\s*of\s*[0-9]*\s*$",     # ページ数
-        r"^\s*.\s*$",   # なにか一文字しか無い 後でユーザが何文字まで無視するか設定できるようにしたい
-        r"^.*(.{1,3}\s+){10,}.*$",  # ぶつ切れの語が極端に多い
-        r"Peng Wang, Lingjie Liu, Nenglun Chen, Hung-Kuo Chu, Christian Theobalt, and Wenping Wang$",
-        r"^\s*Multimodal Technologies and Interact\s*",
-        r"^www.mdpi.com/journal/mti$",
-        r"^\s*Li et al\.\s*$",
-        r"^\s*Exertion-Aware Path Generation\s*$"
-    ]
-
-    # フォーマットの都合上どうしても入ってしまうノイズを置換する
-    # これはそのノイズ候補のリスト
-    # 一般的な表現の場合は諸刃の剣となるので注意
-    # また、リストの最初に近いほど優先して処理される
-    replace_source = [
-        r"\s*[0-9]+\s*of\s*[0-9]+\s*",   # "1 of 9" などのページカウント
-        r"\s*Li et al\.\s*"
-    ]
-    # ノイズをどのような文字列に置換するか
-    replace_target = [
-        " ",
-        " "
-    ]
-
-    # markdown用の置換リスト
-    markdown_replace_source = [
-        "•"
-    ]
-    markdown_replace_target = [
-        "-"
-    ]
-
-    # このリストに含まれる正規表現に当てはまる文字列がある行で改行する
-    return_lines = [
-        r"(\.|:|;|\([0-9]+\))\s*$",   # 文末(計算式や箇条書きなども含む)
-        r"^\s*([0-9]+\s*\.\s*)+.{3,45}\s*$",    # 見出し
-        r"^\s*([0-9]+\s*\.\s*)*[0-9]+\s*.{3,45}\s*$",    # 見出し ↑よりも条件が緩いので注意
-        r"^([0-9]+\s*\.?)?\s*introduction$",    # 数字がない場合にも対応
-        r"^([0-9]+\s*\.?)?\s*related works?$",
-        r"^([0-9]+\s*\.?)?\s*overview$",
-        r"^([0-9]+\s*\.?)?\s*algorithm$",
-        r"^([0-9]+\s*\.?)?\s*experimental results?$",
-        r"^([0-9]+\s*\.?)?\s*conclusions?$",
-        r"^([0-9]+\s*\.?)?\s*acknowledgements?$",
-        r"^([0-9]+\s*\.?)?\s*references?$"
-    ]
-    # このリストに含まれる正規表現に当てはまる文字列があるとき、
-    # 改行対象でも改行しない
-    # 主にその略語の後に文が続きそうなものが対象
-    # 単なる略語は文末にも存在し得るので対象外
-    # 参考：[参考文献リストやデータベースに出てくる略語・用語一覧]
-    # (https://www.dl.itc.u-tokyo.ac.jp/gacos/supportbook/16.html)
-    return_ignore_lines = [
-        r"\s+(e\.g|et al|etc|ex)\.$",
-        r"\s+(ff|figs?)\.$",
-        r"\s+(i\.e|illus)\.$",
-        r"\s+ll\.$",
-        r"\s+(Mr|Ms|Mrs)\.$",
-        r"\s+(pp|par|pt)\.$",
-        r"\s+sec\.$",
-        # "["が始まっているが"]"で閉じられていない(参考文献表記の途中など)
-        r"\[(?!.*\]).*$"
-    ]
-
-    # markdown方式で出力する時、この正規表現に当てはまる行を見出しとして扱う
-    header_lines = [
-        r"^\s*([0-9]+\s*\.\s*)+.{3,45}\s*$",     # "1.2.3. aaaa" などにヒット
-        r"^\s*([0-9]+\s*\.\s*)*[0-9]+\s*.{3,45}\s*$",    # "1.2.3 aaaa" などにヒット
-        r"^([0-9]+\s*\.?)?\s*introduction$",    # 数字がない場合にも対応
-        r"^([0-9]+\s*\.?)?\s*related works?$",
-        r"^([0-9]+\s*\.?)?\s*overview$",
-        r"^([0-9]+\s*\.?)?\s*algorithm$",
-        r"^([0-9]+\s*\.?)?\s*experimental results?$",
-        r"^([0-9]+\s*\.?)?\s*conclusions?$",
-        r"^([0-9]+\s*\.?)?\s*acknowledgements?$",
-        r"^([0-9]+\s*\.?)?\s*references?$"
-    ]
-    # 見出しの大きさを決定するためのパターン
-    # header_linesの要素と対応する形で記述する
-    header_depth_count = [
-        r"[0-9]+\s*\.\s*",  # 1.2.3. の"数字."の数が多いほど見出しが小さくなる(#の数が多くなる)
-        r"[0-9]+",
-        r"^$",
-        r"^$",
-        r"^$",
-        r"^$",
-        r"^$",
-        r"^$",
-        r"^$",
-        r"^$"
-    ]
-    # 見出しの日本語訳の先頭の数字などを消すためのパターン
-    header_target_remove = [
-        r"[0-9]+\s*\.\s*",
-        r"\s*([0-9]+\s*\.\s*)*[0-9]+\s*",
-        r"[0-9]+\s*\.\s*",
-        r"[0-9]+\s*\.\s*",
-        r"[0-9]+\s*\.\s*",
-        r"[0-9]+\s*\.\s*",
-        r"[0-9]+\s*\.\s*",
-        r"[0-9]+\s*\.\s*",
-        r"[0-9]+\s*\.\s*",
-        r"[0-9]+\s*\.\s*"
-    ]
-    # 見出しの最大の大きさ 1が最大で6が最小
-    # header_linesの要素と対応する形で記述する
-    header_max_size = [
-        2,
-        2,
-        2,
-        2,
-        2,
-        2,
-        2,
-        2,
-        2,
-        2
-    ]

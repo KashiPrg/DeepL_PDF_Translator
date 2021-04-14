@@ -286,7 +286,7 @@ default_settings = {
                 True,
                 True,
                 True,
-                True
+                False
             ],
             "list_bool_ignore_case": [
                 False,
@@ -310,7 +310,7 @@ default_settings = {
                 "ページ数",
                 "ページ数",
                 "なにか一文字しか無い",
-                "縦書きや特殊レイアウトなどの影響でぶつ切れの語が極端に多い"
+                "(正常な文の巻き込み注意)縦書きや特殊レイアウトなどの影響でぶつ切れの語が極端に多い"
             ]
         },
         "replace_parts": {
