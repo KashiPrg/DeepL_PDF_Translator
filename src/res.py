@@ -36,61 +36,36 @@ def move_listitem(target_list, index, target_pos):
 
 class InputItemInfoWindow(wx.Frame):
     """
-    リストボックスの項目の情報を入力するウインドウ(汎用)
+    リストボックスの項目の情報を入力するウインドウ(抽象クラス)
     """
-    def __init__(self, parent_window, title, window_minsize, window_maxsize, parent_tab, operation, position, enabled=True, ignorecase=False, pattern="", example="", remarks=""):
+    def __init__(self, parent_window, title, window_minsize, window_maxsize):
         super().__init__(parent_window, title=title, size=window_minsize, style=wx.CAPTION | wx.CLOSE_BOX | wx.RESIZE_BORDER | wx.FRAME_NO_TASKBAR | wx.FRAME_FLOAT_ON_PARENT)
 
         # 各種Sizerやボタンを用意、その他初期化
-        self._Initiate(parent_window, parent_tab, operation, position, window_minsize, window_maxsize)
+        self.__Initiate(parent_window, window_minsize, window_maxsize)
 
-        self._enabled = enabled
-        self._ignorecase = ignorecase
-        self._pattern = pattern
-        self._example = example
-        self._remarks = remarks
-
-    def PrepareWidgets(self):
-        # チェックボックス
-        self._chkbx_enabled = self._Add_CheckBox("有効化", self._enabled)
-        self._chkbx_ignorecase = self._Add_CheckBox("大文字と小文字の違いを無視する", self._ignorecase)
-
-        # 入力フィールドのラベル
-        self._Add_FieldLabel("正規表現パターン :")
-        self._Add_FieldLabel("マッチング例 :")
-        self._Add_FieldLabel("備考 :")
-
-        # 入力フィールド
-        self._field_pattern = self._Add_InputField(self._pattern)
-        self._field_example = self._Add_InputField(self._example)
-        self._field_remarks = self._Add_InputField(self._remarks)
+    def Destroy(self):
+        # 親ウインドウを有効化してから閉じる
+        self.__parent_window.Enable()
+        super().Destroy()
 
     def _Window_Close_Event(self, event):
         """
         ウインドウを閉じる時の処理
         """
         # 何もせずに閉じる
-        self._parent_window.Enable()
+        self.__parent_window.Enable()
         self.Destroy()
 
     def _Button_OK_Event(self, event):
         """
         OKボタンを押した時の処理
+
+        継承クラスで実装されなければならない
         """
-        self._parent_window.Enable()
+        pass
 
-        # 親タブに操作を追加してウインドウを閉じる
-        enabled = self._chkbx_enabled.GetValue()
-        ignorecase = self._chkbx_ignorecase.GetValue()
-        pattern = self._field_pattern.GetValue()
-        example = self._field_example.GetValue()
-        remarks = self._field_remarks.GetValue()
-
-        self._parent_tab.Add_Operation(self._operation, [self._position, enabled, ignorecase, pattern, example, remarks])
-
-        self.Destroy()
-
-    def _Initiate(self, parent_window, parent_tab, operation, position, window_minsize, window_maxsize):
+    def __Initiate(self, parent_window, window_minsize, window_maxsize):
         """
         ウインドウ中のウィジェット以外の要素を初期化する
 
@@ -110,49 +85,46 @@ class InputItemInfoWindow(wx.Frame):
         self.SetMaxSize(window_maxsize)
 
         # 親ウインドウと親タブ、対象の操作、対象の場所を保持
-        self._parent_window = parent_window
-        self._parent_tab = parent_tab
-        self._operation = operation
-        self._position = position
+        self.__parent_window = parent_window
         # 他の操作がされないように親ウインドウを無効化
-        self._parent_window.Disable()
+        self.__parent_window.Disable()
 
         # 背景用パネル
-        self._background = wx.Panel(self)
+        self.__background = wx.Panel(self)
 
         # ウインドウ全体のSizer
-        self._sizer = wx.BoxSizer(wx.VERTICAL)
-        self._background.SetSizer(self._sizer)
-        self._subsizer = wx.BoxSizer(wx.VERTICAL)  # 四隅の余白用のSizer
-        self._sizer.Add(self._subsizer, proportion=1, flag=wx.EXPAND | wx.ALL, border=15)
+        self.__sizer = wx.BoxSizer(wx.VERTICAL)
+        self.__background.SetSizer(self.__sizer)
+        self.__subsizer = wx.BoxSizer(wx.VERTICAL)  # 四隅の余白用のSizer
+        self.__sizer.Add(self.__subsizer, proportion=1, flag=wx.EXPAND | wx.ALL, border=15)
 
         # チェックボックス用のSizer
-        self._chkbx_sizer = wx.BoxSizer(wx.VERTICAL)
-        self._subsizer.Add(self._chkbx_sizer, flag=wx.EXPAND | wx.BOTTOM, border=10)
+        self.__chkbx_sizer = wx.BoxSizer(wx.VERTICAL)
+        self.__subsizer.Add(self.__chkbx_sizer, flag=wx.EXPAND | wx.BOTTOM, border=10)
 
         # ラベルと入力フィールド用のSizer
-        self._lf_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        self._subsizer.Add(self._lf_sizer, proportion=1, flag=wx.EXPAND)
+        self.__lf_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.__subsizer.Add(self.__lf_sizer, proportion=1, flag=wx.EXPAND)
 
         # 入力フィールドのラベル用のSizer
-        self._label_sizer = wx.BoxSizer(wx.VERTICAL)
-        self._lf_sizer.Add(self._label_sizer, flag=wx.EXPAND | wx.RIGHT, border=5)
+        self.__label_sizer = wx.BoxSizer(wx.VERTICAL)
+        self.__lf_sizer.Add(self.__label_sizer, flag=wx.EXPAND | wx.RIGHT, border=5)
 
         # 入力フィールド用のSizer
-        self._field_sizer = wx.BoxSizer(wx.VERTICAL)
-        self._lf_sizer.Add(self._field_sizer, proportion=1, flag=wx.EXPAND)
+        self.__field_sizer = wx.BoxSizer(wx.VERTICAL)
+        self.__lf_sizer.Add(self.__field_sizer, proportion=1, flag=wx.EXPAND)
 
         # 各種ボタン用のSizer
-        self._button_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        self._subsizer.Add(self._button_sizer, flag=wx.ALIGN_RIGHT)
+        self.__button_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.__subsizer.Add(self.__button_sizer, flag=wx.ALIGN_RIGHT)
 
         # 各種ボタン
-        self._button_ok = wx.Button(self._background, label="OK")
-        self._button_ok.Bind(wx.EVT_BUTTON, self._Button_OK_Event)
-        self._button_sizer.Add(self._button_ok)
-        self._button_cancel = wx.Button(self._background, label="キャンセル")
-        self._button_cancel.Bind(wx.EVT_BUTTON, self._Window_Close_Event)
-        self._button_sizer.Add(self._button_cancel, flag=wx.LEFT, border=12)
+        self.__button_ok = wx.Button(self.__background, label="OK")
+        self.__button_ok.Bind(wx.EVT_BUTTON, self._Button_OK_Event)
+        self.__button_sizer.Add(self.__button_ok)
+        self.__button_cancel = wx.Button(self.__background, label="キャンセル")
+        self.__button_cancel.Bind(wx.EVT_BUTTON, self._Window_Close_Event)
+        self.__button_sizer.Add(self.__button_cancel, flag=wx.LEFT, border=12)
 
     def _Add_CheckBox(self, label, checked):
         """
@@ -165,9 +137,9 @@ class InputItemInfoWindow(wx.Frame):
         Returns:
             wx.CheckBox: 追加されたチェックボックス
         """
-        chkbx = wx.CheckBox(self._background, label=label)
+        chkbx = wx.CheckBox(self.__background, label=label)
         chkbx.SetValue(checked)
-        self._chkbx_sizer.Add(chkbx)
+        self.__chkbx_sizer.Add(chkbx)
 
         return chkbx
 
@@ -178,8 +150,8 @@ class InputItemInfoWindow(wx.Frame):
         Args:
             label (str): 入力フィールドのラベル
         """
-        label = wx.StaticText(self._background, label=label)
-        self._label_sizer.Add(label, proportion=1)
+        label = wx.StaticText(self.__background, label=label)
+        self.__label_sizer.Add(label, proportion=1)
 
     def _Add_InputField(self, pre_filled_value=""):
         """
@@ -192,8 +164,8 @@ class InputItemInfoWindow(wx.Frame):
             wx.TextCtrl: 追加された入力フィールド
         """
         field_sizer = wx.BoxSizer(wx.VERTICAL)
-        self._field_sizer.Add(field_sizer, proportion=1, flag=wx.EXPAND)
-        input_field = wx.TextCtrl(self._background, value=pre_filled_value)
+        self.__field_sizer.Add(field_sizer, proportion=1, flag=wx.EXPAND)
+        input_field = wx.TextCtrl(self.__background, value=pre_filled_value)
         field_sizer.Add(input_field, flag=wx.EXPAND)
 
         return input_field
@@ -209,11 +181,54 @@ class InputItemInfoWindow(wx.Frame):
             wx.SpinCtrl: 追加された入力フィールド
         """
         field_sizer = wx.BoxSizer(wx.VERTICAL)
-        self._field_sizer.Add(field_sizer, proportion=1, flag=wx.EXPAND)
-        input_field = wx.SpinCtrl(self._background, min=1, max=6, initial=pre_filled_value)
+        self.__field_sizer.Add(field_sizer, proportion=1, flag=wx.EXPAND)
+        input_field = wx.SpinCtrl(self.__background, min=1, max=6, initial=pre_filled_value)
         field_sizer.Add(input_field)
 
         return input_field
+
+
+class InputItemInfoWindow_Ordinary(InputItemInfoWindow):
+    """
+    リストボックスの項目の情報を入力するウインドウ(汎用)
+    """
+    def __init__(self, parent_window, title, window_minsize, window_maxsize, parent_tab, operation, position, enabled=True, ignorecase=False, pattern="", example="", remarks=""):
+        super().__init__(parent_window, title, window_minsize, window_maxsize)
+
+        self.__parent_tab = parent_tab
+        self.__operation = operation
+        self.__position = position
+
+        # チェックボックス
+        self.__chkbx_enabled = self._Add_CheckBox("有効化", enabled)
+        self.__chkbx_ignorecase = self._Add_CheckBox("大文字と小文字の違いを無視する", ignorecase)
+
+        # 入力フィールドのラベル
+        self._Add_FieldLabel("正規表現パターン :")
+        self._Add_FieldLabel("マッチング例 :")
+        self._Add_FieldLabel("備考 :")
+
+        # 入力フィールド
+        self.__field_pattern = self._Add_InputField(pattern)
+        self.__field_example = self._Add_InputField(example)
+        self.__field_remarks = self._Add_InputField(remarks)
+
+        self.Show()
+
+    def _Button_OK_Event(self, event):
+        """
+        OKボタンを押した時の処理
+        """
+        # 親タブに操作を追加してウインドウを閉じる
+        enabled = self.__chkbx_enabled.GetValue()
+        ignorecase = self.__chkbx_ignorecase.GetValue()
+        pattern = self.__field_pattern.GetValue()
+        example = self.__field_example.GetValue()
+        remarks = self.__field_remarks.GetValue()
+
+        self.__parent_tab.Add_Operation(self.__operation, [self.__position, enabled, ignorecase, pattern, example, remarks])
+
+        self.Destroy()
 
 
 class InputItemInfoWindow_Replace(InputItemInfoWindow):
@@ -221,14 +236,15 @@ class InputItemInfoWindow_Replace(InputItemInfoWindow):
     リストボックスの項目の情報を入力するウインドウ(置換ページ用)
     """
     def __init__(self, parent_window, title, window_minsize, window_maxsize, parent_tab, operation, position, enabled=True, ignorecase=False, pattern="", target="", example="", remarks=""):
-        super().__init__(parent_window, title, window_minsize, window_maxsize, parent_tab, operation, position, enabled, ignorecase, pattern, example, remarks)
+        super().__init__(parent_window, title, window_minsize, window_maxsize)
 
-        self._target = target
+        self.__parent_tab = parent_tab
+        self.__operation = operation
+        self.__position = position
 
-    def PrepareWidgets(self):
         # チェックボックス
-        self._chkbx_enabled = self._Add_CheckBox("有効化", self._enabled)
-        self._chkbx_ignorecase = self._Add_CheckBox("大文字と小文字の違いを無視する", self._ignorecase)
+        self.__chkbx_enabled = self._Add_CheckBox("有効化", enabled)
+        self.__chkbx_ignorecase = self._Add_CheckBox("大文字と小文字の違いを無視する", ignorecase)
 
         # 入力フィールドのラベル
         self._Add_FieldLabel("正規表現パターン :")
@@ -237,26 +253,26 @@ class InputItemInfoWindow_Replace(InputItemInfoWindow):
         self._Add_FieldLabel("備考 :")
 
         # 入力フィールド
-        self._field_pattern = self._Add_InputField(self._pattern)
-        self._field_target = self._Add_InputField(self._target)
-        self._field_example = self._Add_InputField(self._example)
-        self._field_remarks = self._Add_InputField(self._remarks)
+        self.__field_pattern = self._Add_InputField(pattern)
+        self.__field_target = self._Add_InputField(target)
+        self.__field_example = self._Add_InputField(example)
+        self.__field_remarks = self._Add_InputField(remarks)
+
+        self.Show()
 
     def _Button_OK_Event(self, event):
         """
         OKボタンを押した時の処理
         """
-        self._parent_window.Enable()
-
         # 親タブに操作を追加してウインドウを閉じる
-        enabled = self._chkbx_enabled.GetValue()
-        ignorecase = self._chkbx_ignorecase.GetValue()
-        pattern = self._field_pattern.GetValue()
-        target = self._field_target.GetValue()
-        example = self._field_example.GetValue()
-        remarks = self._field_remarks.GetValue()
+        enabled = self.__chkbx_enabled.GetValue()
+        ignorecase = self.__chkbx_ignorecase.GetValue()
+        pattern = self.__field_pattern.GetValue()
+        target = self.__field_target.GetValue()
+        example = self.__field_example.GetValue()
+        remarks = self.__field_remarks.GetValue()
 
-        self._parent_tab.Add_Operation(self._operation, [self._position, enabled, ignorecase, pattern, target, example, remarks])
+        self.__parent_tab.Add_Operation(self.__operation, [self.__position, enabled, ignorecase, pattern, target, example, remarks])
 
         self.Destroy()
 
@@ -266,16 +282,15 @@ class InputItemInfoWindow_Header(InputItemInfoWindow):
     リストボックスの項目の情報を入力するウインドウ(置換ページ用)
     """
     def __init__(self, parent_window, title, window_minsize, window_maxsize, parent_tab, operation, position, enabled=True, ignorecase=False, pattern="", depth_count="", target_remove="", max_size=2, example="", remarks=""):
-        super().__init__(parent_window, title, window_minsize, window_maxsize, parent_tab, operation, position, enabled, ignorecase, pattern, example, remarks)
+        super().__init__(parent_window, title, window_minsize, window_maxsize)
 
-        self._depth_count = depth_count
-        self._target_remove = target_remove
-        self._max_size = max_size
+        self.__parent_tab = parent_tab
+        self.__operation = operation
+        self.__position = position
 
-    def PrepareWidgets(self):
         # チェックボックス
-        self._chkbx_enabled = self._Add_CheckBox("有効化", self._enabled)
-        self._chkbx_ignorecase = self._Add_CheckBox("大文字と小文字の違いを無視する", self._ignorecase)
+        self.__chkbx_enabled = self._Add_CheckBox("有効化", enabled)
+        self.__chkbx_ignorecase = self._Add_CheckBox("大文字と小文字の違いを無視する", ignorecase)
 
         # 入力フィールドのラベル
         self._Add_FieldLabel("正規表現パターン :")
@@ -286,30 +301,30 @@ class InputItemInfoWindow_Header(InputItemInfoWindow):
         self._Add_FieldLabel("備考 :")
 
         # 入力フィールド
-        self._field_pattern = self._Add_InputField(self._pattern)
-        self._field_depth_count = self._Add_InputField(self._depth_count)
-        self._field_target_remove = self._Add_InputField(self._target_remove)
-        self._field_max_size = self._Add_NumberInputField(self._max_size)
-        self._field_example = self._Add_InputField(self._example)
-        self._field_remarks = self._Add_InputField(self._remarks)
+        self.__field_pattern = self._Add_InputField(pattern)
+        self.__field_depth_count = self._Add_InputField(depth_count)
+        self.__field_target_remove = self._Add_InputField(target_remove)
+        self.__field_max_size = self._Add_NumberInputField(max_size)
+        self.__field_example = self._Add_InputField(example)
+        self.__field_remarks = self._Add_InputField(remarks)
+
+        self.Show()
 
     def _Button_OK_Event(self, event):
         """
         OKボタンを押した時の処理
         """
-        self._parent_window.Enable()
-
         # 親タブに操作を追加してウインドウを閉じる
-        enabled = self._chkbx_enabled.GetValue()
-        ignorecase = self._chkbx_ignorecase.GetValue()
-        pattern = self._field_pattern.GetValue()
-        depth_count = self._field_depth_count.GetValue()
-        target_remove = self._field_target_remove.GetValue()
-        max_size = self._field_max_size.GetValue()
-        example = self._field_example.GetValue()
-        remarks = self._field_remarks.GetValue()
+        enabled = self.__chkbx_enabled.GetValue()
+        ignorecase = self.__chkbx_ignorecase.GetValue()
+        pattern = self.__field_pattern.GetValue()
+        depth_count = self.__field_depth_count.GetValue()
+        target_remove = self.__field_target_remove.GetValue()
+        max_size = self.__field_max_size.GetValue()
+        example = self.__field_example.GetValue()
+        remarks = self.__field_remarks.GetValue()
 
-        self._parent_tab.Add_Operation(self._operation, [self._position, enabled, ignorecase, pattern, depth_count, target_remove, max_size, example, remarks])
+        self.__parent_tab.Add_Operation(self.__operation, [self.__position, enabled, ignorecase, pattern, depth_count, target_remove, max_size, example, remarks])
 
         self.Destroy()
 
@@ -714,9 +729,10 @@ class RegularExpressionsWindow(wx.Frame):
             # 選択された項目のインデックスを取得 何も選択されていないなら負の値になり、末尾に追加される
             index = self._ListBox_SelectedItemIndex()
 
-            inputwindow = InputItemInfoWindow(self._window, "項目の追加", wx.Size(500, 250), wx.Size(1000, 250), self, self._ListBox_AddItem, index)
-            inputwindow.PrepareWidgets()
-            inputwindow.Show()
+            # 入力ウインドウを出す
+            # 入力ウインドウが出ても正規表現ウインドウの処理は続くため操作が可能(つまり追加ボタンを押しまくれば入力ウインドウが出しまくれる)だが、
+            # 入力ウインドウ側で正規表現ウインドウを無効化することで、入力中に正規表現ウインドウ側で好き勝手することを禁止する
+            InputItemInfoWindow_Ordinary(self._window, "項目の追加", wx.Size(500, 250), wx.Size(1000, 250), self, self._ListBox_AddItem, index)
 
         def _Button_Edit_Event(self, event):
             """
@@ -727,7 +743,7 @@ class RegularExpressionsWindow(wx.Frame):
 
             # 何かが選択されているなら編集を実行
             if index >= 0:
-                inputwindow = InputItemInfoWindow(
+                InputItemInfoWindow_Ordinary(
                     self._window,
                     "項目の編集",
                     wx.Size(500, 250),
@@ -740,8 +756,6 @@ class RegularExpressionsWindow(wx.Frame):
                     self._pattern_list_edited[index],
                     self._example_list_edited[index],
                     self._remarks_list_edited[index])
-                inputwindow.PrepareWidgets()
-                inputwindow.Show()
 
         def _Button_Delete_Event(self, event):
             """
@@ -1226,9 +1240,7 @@ class RegularExpressionsWindow(wx.Frame):
             # 選択された項目のインデックスを取得 何も選択されていないなら負の値になり、末尾に追加される
             index = self._ListBox_SelectedItemIndex()
 
-            inputwindow = InputItemInfoWindow_Replace(self._window, "項目の追加", wx.Size(500, 280), wx.Size(1000, 280), self, self._ListBox_AddItem, index)
-            inputwindow.PrepareWidgets()
-            inputwindow.Show()
+            InputItemInfoWindow_Replace(self._window, "項目の追加", wx.Size(500, 280), wx.Size(1000, 280), self, self._ListBox_AddItem, index)
 
         def _Button_Edit_Event(self, event):
             """
@@ -1239,7 +1251,7 @@ class RegularExpressionsWindow(wx.Frame):
 
             # 何かが選択されているなら編集を実行
             if index >= 0:
-                inputwindow = InputItemInfoWindow_Replace(
+                InputItemInfoWindow_Replace(
                     self._window,
                     "項目の編集",
                     wx.Size(500, 280),
@@ -1253,8 +1265,6 @@ class RegularExpressionsWindow(wx.Frame):
                     self._target_list_edited[index],
                     self._example_list_edited[index],
                     self._remarks_list_edited[index])
-                inputwindow.PrepareWidgets()
-                inputwindow.Show()
 
         def _ListBox_PrepareItems(self):
             """
@@ -1419,9 +1429,7 @@ class RegularExpressionsWindow(wx.Frame):
             # 選択された項目のインデックスを取得 何も選択されていないなら負の値になり、末尾に追加される
             index = self._ListBox_SelectedItemIndex()
 
-            inputwindow = InputItemInfoWindow_Header(self._window, "項目の追加", wx.Size(500, 340), wx.Size(1000, 340), self, self._ListBox_AddItem, index)
-            inputwindow.PrepareWidgets()
-            inputwindow.Show()
+            InputItemInfoWindow_Header(self._window, "項目の追加", wx.Size(500, 340), wx.Size(1000, 340), self, self._ListBox_AddItem, index)
 
         def _Button_Edit_Event(self, event):
             """
@@ -1432,7 +1440,7 @@ class RegularExpressionsWindow(wx.Frame):
 
             # 何かが選択されているなら編集を実行
             if index >= 0:
-                inputwindow = InputItemInfoWindow_Header(
+                InputItemInfoWindow_Header(
                     self._window,
                     "項目の編集",
                     wx.Size(500, 340),
@@ -1448,8 +1456,6 @@ class RegularExpressionsWindow(wx.Frame):
                     self._max_size_list_edited[index],
                     self._example_list_edited[index],
                     self._remarks_list_edited[index])
-                inputwindow.PrepareWidgets()
-                inputwindow.Show()
 
         def _ListBox_PrepareItems(self):
             """
