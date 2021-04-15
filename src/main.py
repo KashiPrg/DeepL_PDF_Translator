@@ -131,7 +131,7 @@ class MyFileDropTarget(wx.FileDropTarget):
 
 class WindowFrame(wx.Frame):
     def __init__(self):
-        wx.Frame.__init__(self, None, title="DeepL PDF Translator", size=(500, 300))
+        wx.Frame.__init__(self, None, title="DeepL PDF Translator", size=(500, 302), style=wx.MINIMIZE_BOX | wx.SYSTEM_MENU | wx.CAPTION | wx.CLOSE_BOX | wx.CLIP_CHILDREN)
 
         # ウインドウを閉じた時のイベント
         self.Bind(wx.EVT_CLOSE, self.Window_Close_Event)
@@ -143,69 +143,91 @@ class WindowFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.Menu_Event)    # メニュー選択時のイベント
         self.SetMenuBar(menu_bar)
 
-        p = wx.Panel(self)
-        sizer = wx.BoxSizer(wx.VERTICAL)
+        sizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.SetSizer(sizer)
+
+        # 各種ウィジェット用の背景
+        widgets_background = wx.Panel(self)
+        sizer.Add(widgets_background, proportion=1, flag=wx.EXPAND)
+        widgets_sizer = wx.BoxSizer(wx.VERTICAL)
+        widgets_background.SetSizer(widgets_sizer)
+        widgets_subsizer = wx.BoxSizer(wx.VERTICAL)
+        widgets_sizer.Add(widgets_subsizer, proportion=1, flag=wx.EXPAND | wx.ALL, border=10)
 
         # 言語選択のラベル
-        target_lang_label = wx.StaticText(p, -1, "翻訳先の言語")
-        sizer.Add(target_lang_label, flag=wx.ALIGN_LEFT | wx.TOP | wx.LEFT, border=10)
+        target_lang_label = wx.StaticText(widgets_background, -1, "翻訳先の言語")
+        widgets_subsizer.Add(target_lang_label, flag=wx.ALIGN_LEFT | wx.TOP | wx.LEFT, border=10)
 
         # 言語選択のコンボボックス
-        self.target_lang_combo = WindowFrame.TargetLangCombo(p, wx.ID_ANY)  # 下で設定したクラスから引っ張ってくる
+        self.target_lang_combo = WindowFrame.TargetLangCombo(widgets_background, wx.ID_ANY)  # 下で設定したクラスから引っ張ってくる
         self.target_lang_combo.SetStringSelection(Settings().target_language)     # 最初の値を設定ファイルから引っ張ってくる
         self.target_lang_combo.Bind(wx.EVT_COMBOBOX, self.TargetLangCombo_Event)   # 選択時のイベントを設定
-        sizer.Add(self.target_lang_combo, flag=wx.ALIGN_LEFT | wx.LEFT, border=10)
+        widgets_subsizer.Add(self.target_lang_combo, flag=wx.ALIGN_LEFT | wx.LEFT, border=10)
 
         # ブラウザ選択のラベル
-        browser_label = wx.StaticText(p, -1, "使用ウェブブラウザ")
-        sizer.Add(browser_label, flag=wx.ALIGN_LEFT | wx.TOP | wx.LEFT, border=10)
+        browser_label = wx.StaticText(widgets_background, -1, "使用ウェブブラウザ")
+        widgets_subsizer.Add(browser_label, flag=wx.ALIGN_LEFT | wx.TOP | wx.LEFT, border=10)
 
         # ブラウザ選択のコンボボックス
-        self.browser_combo = WindowFrame.BrowserCombo(p, wx.ID_ANY)
+        self.browser_combo = WindowFrame.BrowserCombo(widgets_background, wx.ID_ANY)
         self.browser_combo.SetStringSelection(Settings().web_browser)
         self.browser_combo.Bind(wx.EVT_COMBOBOX, self.BrowserCombo_Event)
-        sizer.Add(self.browser_combo, flag=wx.ALIGN_LEFT | wx.LEFT | wx.BOTTOM, border=10)
+        widgets_subsizer.Add(self.browser_combo, flag=wx.ALIGN_LEFT | wx.LEFT | wx.BOTTOM, border=10)
 
         # 翻訳時にDeepLのウインドウを最小化するか
-        self.chkbx_minimize_tl_window = wx.CheckBox(p, wx.ID_ANY, "DeepLのウインドウを最小化する")
+        self.chkbx_minimize_tl_window = wx.CheckBox(widgets_background, wx.ID_ANY, "DeepLのウインドウを最小化する")
         self.chkbx_minimize_tl_window.SetToolTip("翻訳開始時に、DeepLを開いたウェブブラウザのウインドウを自動的に最小化します")
         self.chkbx_minimize_tl_window.SetValue(Settings().minimize_translation_window)
         self.chkbx_minimize_tl_window.Bind(wx.EVT_CHECKBOX, self.CheckBox_MinimizeTLWindow_Event)
-        sizer.Add(self.chkbx_minimize_tl_window, flag=wx.ALIGN_LEFT | wx.TOP | wx.LEFT | wx.BOTTOM, border=10)
+        widgets_subsizer.Add(self.chkbx_minimize_tl_window, flag=wx.ALIGN_LEFT | wx.TOP | wx.LEFT | wx.BOTTOM, border=10)
 
         # 翻訳・出力時の設定を扱うチェックボックス群
-        self.chkbx_target_return = wx.CheckBox(p, wx.ID_ANY, "翻訳文を一文ごとに改行する")
+        self.chkbx_target_return = wx.CheckBox(widgets_background, wx.ID_ANY, "翻訳文を一文ごとに改行する")
         self.chkbx_target_return.SetToolTip("出力された日本語の翻訳文を、\"。\"の位置で改行します")
         self.chkbx_target_return.SetValue(Settings().add_target_return)
         self.chkbx_target_return.Bind(wx.EVT_CHECKBOX, self.CheckBox_TargetReturn_Event)
-        sizer.Add(self.chkbx_target_return, flag=wx.ALIGN_LEFT | wx.TOP | wx.LEFT, border=10)
+        widgets_subsizer.Add(self.chkbx_target_return, flag=wx.ALIGN_LEFT | wx.TOP | wx.LEFT, border=10)
 
-        self.chkbx_output_markdown = wx.CheckBox(p, wx.ID_ANY, "出力をMarkdown式にする")
+        self.chkbx_output_markdown = wx.CheckBox(widgets_background, wx.ID_ANY, "出力をMarkdown式にする")
         self.chkbx_output_markdown.SetToolTip("見出しや改行をMarkdown式にします")
         self.chkbx_output_markdown.SetValue(Settings().output_type_markdown)
         self.chkbx_output_markdown.Bind(wx.EVT_CHECKBOX, self.CheckBox_OutputMarkdown_Event)
-        sizer.Add(self.chkbx_output_markdown, flag=wx.ALIGN_LEFT | wx.LEFT, border=10)
+        widgets_subsizer.Add(self.chkbx_output_markdown, flag=wx.ALIGN_LEFT | wx.LEFT, border=10)
 
-        self.chkbx_output_source = wx.CheckBox(p, wx.ID_ANY, "原文を出力する")
+        self.chkbx_output_source = wx.CheckBox(widgets_background, wx.ID_ANY, "原文を出力する")
         self.chkbx_output_source.SetToolTip("原文と翻訳文をセットで出力します")
         self.chkbx_output_source.SetValue(Settings().output_source)
         self.chkbx_output_source.Bind(wx.EVT_CHECKBOX, self.CheckBox_OutputSource_Event)
-        sizer.Add(self.chkbx_output_source, flag=wx.ALIGN_LEFT | wx.LEFT, border=10)
+        widgets_subsizer.Add(self.chkbx_output_source, flag=wx.ALIGN_LEFT | wx.LEFT, border=10)
 
-        self.chkbx_source_as_comment = wx.CheckBox(p, wx.ID_ANY, "原文をコメントとして出力する")
+        self.chkbx_source_as_comment = wx.CheckBox(widgets_background, wx.ID_ANY, "原文をコメントとして出力する")
         self.chkbx_source_as_comment.SetToolTip("Markdown形式において、原文をコメントとして出力します")
         self.chkbx_source_as_comment.SetValue(Settings().source_as_comment)
         self.chkbx_source_as_comment.Bind(wx.EVT_CHECKBOX, self.CheckBox_SourceAsComment_Event)
         self.CheckBox_SourceAsComment_EnableCheck()     # この項目は前の2つに依存している
-        sizer.Add(self.chkbx_source_as_comment, flag=wx.ALIGN_LEFT | wx.LEFT, border=10)
+        widgets_subsizer.Add(self.chkbx_source_as_comment, flag=wx.ALIGN_LEFT | wx.LEFT, border=10)
 
-        p.SetSizer(sizer)
+        # ドラッグ＆ドロップ用のパネル
+        drop_panel = wx.Panel(self)
+        drop_panel.SetBackgroundColour("#D3D3D3")
+        sizer.Add(drop_panel, proportion=1, flag=wx.EXPAND)
 
+        drop_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        drop_panel.SetSizer(drop_sizer)
+        drop_subsizer = wx.BoxSizer(wx.VERTICAL)
+        drop_sizer.Add(drop_subsizer, proportion=1, flag=wx.ALIGN_CENTER)
+        drop_text = wx.StaticText(drop_panel, label="翻訳対象のPDFファイルを\nここにドロップ", style=wx.ALIGN_CENTER)
+        drop_text.SetForegroundColour("#696969")
+        drop_subsizer.Add(drop_text, flag=wx.ALIGN_CENTER)
+
+        # ドラッグ＆ドロップ設定
+        dt = MyFileDropTarget(self)
+        drop_panel.SetDropTarget(dt)
+
+        # 正規表現ウインドウ関連
         self.__res_window = None
         self.res_window_destroyed = True
 
-        dt = MyFileDropTarget(self)
-        self.SetDropTarget(dt)
         self.Show()
 
     # ウィンドウを閉じるときに発生するイベント
