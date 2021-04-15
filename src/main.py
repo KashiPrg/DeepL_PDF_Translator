@@ -375,17 +375,17 @@ class WindowFrame(wx.Frame):
         def __init__(self):
             super().__init__()
             self.Append(MainWindow_MenuBar_Menu.EDIT_RE.value, "正規表現の編集")
-            self.AppendSeparator()
-            self.Append(MainWindow_MenuBar_Menu.EDIT_START_RE.value, "抽出開始条件の正規表現を編集")
-            self.Append(MainWindow_MenuBar_Menu.EDIT_END_RE.value, "抽出終了条件の正規表現を編集")
-            self.start_ignore = self.AppendCheckItem(MainWindow_MenuBar_Menu.CHECKBOX_IGNORE_START_CONDITION.value, "抽出開始条件を無視して最初から翻訳する")
-            self.end_ignore = self.AppendCheckItem(MainWindow_MenuBar_Menu.CHECKBOX_IGNORE_END_CONDITION.value, "抽出終了条件を無視して最後まで翻訳する")
-            self.AppendSeparator()
-            self.Append(MainWindow_MenuBar_Menu.EDIT_IGNORE_RE.value, "無視条件の正規表現を編集")
-            self.Append(MainWindow_MenuBar_Menu.EDIT_RETURN_RE.value, "段落終了条件の正規表現を編集")
-            self.Append(MainWindow_MenuBar_Menu.EDIT_RETURN_IGNORE_RE.value, "段落終了無視条件の正規表現を編集")
-            self.Append(MainWindow_MenuBar_Menu.EDIT_REPLACE_RE.value, "置換条件の正規表現を編集")
-            self.Append(MainWindow_MenuBar_Menu.EDIT_HEADER_RE.value, "見出し条件の正規表現を編集")
+            # self.AppendSeparator()
+            # self.Append(MainWindow_MenuBar_Menu.EDIT_START_RE.value, "抽出開始条件の正規表現を編集")
+            # self.Append(MainWindow_MenuBar_Menu.EDIT_END_RE.value, "抽出終了条件の正規表現を編集")
+            # self.start_ignore = self.AppendCheckItem(MainWindow_MenuBar_Menu.CHECKBOX_IGNORE_START_CONDITION.value, "抽出開始条件を無視して最初から翻訳する")
+            # self.end_ignore = self.AppendCheckItem(MainWindow_MenuBar_Menu.CHECKBOX_IGNORE_END_CONDITION.value, "抽出終了条件を無視して最後まで翻訳する")
+            # self.AppendSeparator()
+            # self.Append(MainWindow_MenuBar_Menu.EDIT_IGNORE_RE.value, "無視条件の正規表現を編集")
+            # self.Append(MainWindow_MenuBar_Menu.EDIT_RETURN_RE.value, "段落終了条件の正規表現を編集")
+            # self.Append(MainWindow_MenuBar_Menu.EDIT_RETURN_IGNORE_RE.value, "段落終了無視条件の正規表現を編集")
+            # self.Append(MainWindow_MenuBar_Menu.EDIT_REPLACE_RE.value, "置換条件の正規表現を編集")
+            # self.Append(MainWindow_MenuBar_Menu.EDIT_HEADER_RE.value, "見出し条件の正規表現を編集")
 
 
 if __name__ == '__main__':
