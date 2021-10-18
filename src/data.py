@@ -214,7 +214,8 @@ res_header_column_widths = [
 default_settings = {
     "str_target_lang": Target_Lang.JAPANESE.value,
     "str_web_browser": Browser.CHROME.value,
-    "bool_minimize_translation_window": True,
+    "int_chars_translated_one_time": 4500,
+    "bool_minimize_translation_window": False,
     "bool_add_target_return": True,
     "bool_output_type_markdown": True,
     "bool_output_source": True,

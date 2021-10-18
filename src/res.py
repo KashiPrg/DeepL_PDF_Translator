@@ -49,6 +49,13 @@ class InputItemInfoWindow(wx.Frame):
         self.__parent_window.Enable()
         super().Destroy()
 
+    def Show(self, show=True):
+        # ラジオボタンが一つ以上あるならば、先頭のものを選択する
+        if len(self._list_radiobutton) > 0:
+            self._list_radiobutton[0].SetValue(True)
+
+        super().Show(show)
+
     def _Window_Close_Event(self, event):
         """
         ウインドウを閉じる時の処理
@@ -64,6 +71,52 @@ class InputItemInfoWindow(wx.Frame):
         継承クラスで実装されなければならない
         """
         pass
+
+    def _Helper_Button_Event(self, event):
+        """
+        正規表現ヘルパーのボタンを押した時のイベント
+        """
+        id = event.GetId()  # どのボタンが押されたか取得
+
+        # ラジオボタンが有効になっている入力フィールドを取得
+        input_field = None
+        for i in range(self._num_inputfield):
+            if self._list_radiobutton[i].GetValue():
+                input_field = self._list_inputfield[i]
+                break
+
+        # どれも有効になっていない場合は終了
+        if input_field is None:
+            return
+
+        # 入力フィールドの文面を取得
+        field_text = input_field.GetValue()
+
+        # 入力フィールドに、押されたボタンに対応した文字列を追加
+        if id == 100:
+            input_field.SetValue(field_text + ".")
+        elif id == 101:
+            input_field.SetValue(field_text + r"\w")
+        elif id == 102:
+            input_field.SetValue(field_text + r"\W")
+        elif id == 103:
+            input_field.SetValue(field_text + r"\s")
+        elif id == 104:
+            input_field.SetValue(field_text + r"\S")
+        elif id == 105:
+            input_field.SetValue(field_text + r"\d")
+        elif id == 106:
+            input_field.SetValue(field_text + r"\D")
+        elif id == 200:
+            input_field.SetValue(field_text + "*")
+        elif id == 201:
+            input_field.SetValue(field_text + "+")
+        elif id == 202:
+            input_field.SetValue(field_text + "?")
+        elif id == 300:
+            input_field.SetValue("^" + field_text)
+        elif id == 301:
+            input_field.SetValue(field_text + "$")
 
     def __Initiate(self, parent_window, window_minsize, window_maxsize):
         """
@@ -98,13 +151,21 @@ class InputItemInfoWindow(wx.Frame):
         self.__subsizer = wx.BoxSizer(wx.VERTICAL)  # 四隅の余白用のSizer
         self.__sizer.Add(self.__subsizer, proportion=1, flag=wx.EXPAND | wx.ALL, border=15)
 
+        # チェックボックスと入力フィールド(左)、正規表現ヘルパー(右)に分けるためのSizer
+        self.__lr_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.__subsizer.Add(self.__lr_sizer, proportion=1, flag=wx.EXPAND)
+
+        # チェックボックスと入力フィールドを縦に並べるSizer
+        self.__cl_sizer = wx.BoxSizer(wx.VERTICAL)
+        self.__lr_sizer.Add(self.__cl_sizer, proportion=1, flag=wx.EXPAND)
+
         # チェックボックス用のSizer
         self.__chkbx_sizer = wx.BoxSizer(wx.VERTICAL)
-        self.__subsizer.Add(self.__chkbx_sizer, flag=wx.EXPAND | wx.BOTTOM, border=10)
+        self.__cl_sizer.Add(self.__chkbx_sizer, flag=wx.EXPAND | wx.BOTTOM, border=10)
 
         # ラベルと入力フィールド用のSizer
         self.__lf_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        self.__subsizer.Add(self.__lf_sizer, proportion=1, flag=wx.EXPAND)
+        self.__cl_sizer.Add(self.__lf_sizer, proportion=1, flag=wx.EXPAND)
 
         # 入力フィールドのラベル用のSizer
         self.__label_sizer = wx.BoxSizer(wx.VERTICAL)
@@ -113,6 +174,88 @@ class InputItemInfoWindow(wx.Frame):
         # 入力フィールド用のSizer
         self.__field_sizer = wx.BoxSizer(wx.VERTICAL)
         self.__lf_sizer.Add(self.__field_sizer, proportion=1, flag=wx.EXPAND)
+
+        # 入力フィールドの数
+        self._num_inputfield = 0
+        # 入力フィールドのリスト
+        self._list_inputfield = []
+        # 正規表現ヘルパー用のラジオボタンのリスト
+        self._list_radiobutton = []
+
+        # 正規表現ヘルパー用のSizer
+        self.__helper_sizer = wx.BoxSizer(wx.VERTICAL)
+        self.__lr_sizer.Add(self.__helper_sizer, flag=wx.EXPAND | wx.LEFT, border=10)
+
+        helper_label = wx.StaticText(self.__background, label="正規表現ヘルパー")
+        self.__helper_sizer.Add(helper_label, flag=wx.BOTTOM, border=10)
+
+        # 正規表現ヘルパーのボタン群のSizer
+        self.__helper_buttons_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.__helper_sizer.Add(self.__helper_buttons_sizer, proportion=1, flag=wx.EXPAND)
+
+        # 正規表現ヘルパーのボタン類
+        # メタキャラクタのボタン用のSizer
+        self.__mcbuttons_sizer = wx.BoxSizer(wx.VERTICAL)
+        self.__helper_buttons_sizer.Add(self.__mcbuttons_sizer, flag=wx.EXPAND)
+
+        self.__button_wildcard = wx.Button(self.__background, id=100, label="任意の1文字")  # .を追加
+        self.__button_wildcard.SetToolTip("任意の1文字にヒットする表現を追加します。")
+        self.__button_wildcard.Bind(wx.EVT_BUTTON, self._Helper_Button_Event)
+        self.__mcbuttons_sizer.Add(self.__button_wildcard)
+        self.__button_alphabet_and_number = wx.Button(self.__background, id=101, label="英数字")  # \wを追加
+        self.__button_alphabet_and_number.SetToolTip("a~z, A~Z, アンダーバー(_), 半角数字にヒットする表現を追加します。")
+        self.__button_alphabet_and_number.Bind(wx.EVT_BUTTON, self._Helper_Button_Event)
+        self.__mcbuttons_sizer.Add(self.__button_alphabet_and_number)
+        self.__button_except_alphabet_and_number = wx.Button(self.__background, id=102, label="英数字以外")  # \Wを追加
+        self.__button_except_alphabet_and_number.SetToolTip("a~z, A~Z, アンダーバー(_), 半角数字以外にヒットする表現を追加します。")
+        self.__button_except_alphabet_and_number.Bind(wx.EVT_BUTTON, self._Helper_Button_Event)
+        self.__mcbuttons_sizer.Add(self.__button_except_alphabet_and_number)
+        self.__button_space = wx.Button(self.__background, id=103, label="空白文字")  # \sを追加
+        self.__button_space.SetToolTip("半角スペース、タブ、改行、キャリッジリターンにヒットする表現を追加します。全角スペースにはヒットしません。")
+        self.__button_space.Bind(wx.EVT_BUTTON, self._Helper_Button_Event)
+        self.__mcbuttons_sizer.Add(self.__button_space)
+        self.__button_except_space = wx.Button(self.__background, id=104, label="空白文字以外")  # \Sを追加
+        self.__button_except_space.SetToolTip("半角スペース、タブ、改行、キャリッジリターン以外にヒットする表現を追加します。全角スペースにもヒットします。")
+        self.__button_except_space.Bind(wx.EVT_BUTTON, self._Helper_Button_Event)
+        self.__mcbuttons_sizer.Add(self.__button_except_space)
+        self.__button_digit = wx.Button(self.__background, id=105, label="半角数字")  # \dを追加
+        self.__button_digit.SetToolTip("半角数字にヒットする表現を追加します。全角数字にはヒットしません。")
+        self.__button_digit.Bind(wx.EVT_BUTTON, self._Helper_Button_Event)
+        self.__mcbuttons_sizer.Add(self.__button_digit)
+        self.__button_except_digit = wx.Button(self.__background, id=106, label="半角数字以外")  # \Dを追加
+        self.__button_except_digit.SetToolTip("半角数字以外にヒットする表現を追加します。全角数字にもヒットします。")
+        self.__button_except_digit.Bind(wx.EVT_BUTTON, self._Helper_Button_Event)
+        self.__mcbuttons_sizer.Add(self.__button_except_digit)
+
+        # 量指定子のボタン用のSizer
+        self.__number_buttons_sizer = wx.BoxSizer(wx.VERTICAL)
+        self.__helper_buttons_sizer.Add(self.__number_buttons_sizer, flag=wx.EXPAND | wx.LEFT, border=5)
+
+        self.__button_0_or_upper = wx.Button(self.__background, id=200, label="0回以上")  # *を追加
+        self.__button_0_or_upper.SetToolTip("直前の文字が0回以上繰り返す場合にヒットする表現を追加します。")
+        self.__button_0_or_upper.Bind(wx.EVT_BUTTON, self._Helper_Button_Event)
+        self.__number_buttons_sizer.Add(self.__button_0_or_upper)
+        self.__button_1_or_upper = wx.Button(self.__background, id=201, label="1回以上")  # +を追加
+        self.__button_1_or_upper.SetToolTip("直前の文字が1回以上繰り返す場合にヒットする表現を追加します。")
+        self.__button_1_or_upper.Bind(wx.EVT_BUTTON, self._Helper_Button_Event)
+        self.__number_buttons_sizer.Add(self.__button_1_or_upper)
+        self.__button_0_or_1 = wx.Button(self.__background, id=202, label="0回か1回")  # ?を追加
+        self.__button_0_or_1.SetToolTip("直前の文字が0個または1個ある場合にヒットする表現を追加します。")
+        self.__button_0_or_1.Bind(wx.EVT_BUTTON, self._Helper_Button_Event)
+        self.__number_buttons_sizer.Add(self.__button_0_or_1)
+
+        # アンカーのボタン用のSizer
+        self.__anchor_buttons_sizer = wx.BoxSizer(wx.VERTICAL)
+        self.__helper_buttons_sizer.Add(self.__anchor_buttons_sizer, flag=wx.EXPAND | wx.LEFT, border=5)
+
+        self.__button_beginning = wx.Button(self.__background, id=300, label="行頭")     # 行頭(^)を追加
+        self.__button_beginning.SetToolTip("直後の文字が行の先頭にある場合にヒットする表現を追加します。たとえば、\"^pattern\"はpatternという文字列が行の先頭にある場合にヒットします。")
+        self.__button_beginning.Bind(wx.EVT_BUTTON, self._Helper_Button_Event)
+        self.__anchor_buttons_sizer.Add(self.__button_beginning)
+        self.__button_end = wx.Button(self.__background, id=301, label="行末")       # 行末($)を追加
+        self.__button_end.SetToolTip("直前の文字が行の末尾にある場合にヒットする表現を追加します。たとえば、\"pattern$\"はpatternという文字列が行の末尾にある場合にヒットします。")
+        self.__button_end.Bind(wx.EVT_BUTTON, self._Helper_Button_Event)
+        self.__anchor_buttons_sizer.Add(self.__button_end)
 
         # 各種ボタン用のSizer
         self.__button_sizer = wx.BoxSizer(wx.HORIZONTAL)
@@ -163,16 +306,31 @@ class InputItemInfoWindow(wx.Frame):
         Returns:
             wx.TextCtrl: 追加された入力フィールド
         """
-        field_sizer = wx.BoxSizer(wx.VERTICAL)
+        # ラベルと同じ間隔で並べる & 入力フィールドとラジオボタンのためのSizer
+        field_sizer = wx.BoxSizer(wx.HORIZONTAL)
         self.__field_sizer.Add(field_sizer, proportion=1, flag=wx.EXPAND)
+        # 入力フィールドを縦に膨らませないためのSizer
+        f_sizer = wx.BoxSizer(wx.VERTICAL)
+        field_sizer.Add(f_sizer, proportion=1, flag=wx.EXPAND)
+        # 入力フィールド
         input_field = wx.TextCtrl(self.__background, value=pre_filled_value)
-        field_sizer.Add(input_field, flag=wx.EXPAND)
+        self._list_inputfield.append(input_field)
+        f_sizer.Add(input_field, flag=wx.EXPAND)
+        # ラジオボタンの位置をずらさないためのSizer
+        r_sizer = wx.BoxSizer(wx.VERTICAL)
+        field_sizer.Add(r_sizer, flag=wx.EXPAND | wx.LEFT, border=5)
+        # 正規表現ヘルパーの入力対象選択のためのラジオボタン
+        radiobutton_res = wx.RadioButton(self.__background, id=self._num_inputfield, label="")
+        radiobutton_res.SetToolTip("このラジオボタンが有効なとき、正規表現ヘルパーの入力対象になります。")
+        self._list_radiobutton.append(radiobutton_res)
+        r_sizer.Add(radiobutton_res, flag=wx.EXPAND)
+        self._num_inputfield += 1
 
         return input_field
 
     def _Add_NumberInputField(self, pre_filled_value=2):
         """
-        ウインドウに入力フィールドを追加する
+        ウインドウに数値入力フィールドを追加する
 
         Args:
             pre_filled_value (int, optional): 入力フィールドに初めから入力されている値
@@ -279,7 +437,7 @@ class InputItemInfoWindow_Replace(InputItemInfoWindow):
 
 class InputItemInfoWindow_Header(InputItemInfoWindow):
     """
-    リストボックスの項目の情報を入力するウインドウ(置換ページ用)
+    リストボックスの項目の情報を入力するウインドウ(見出しページ用)
     """
     def __init__(self, parent_window, title, window_minsize, window_maxsize, parent_tab, operation, position, enabled=True, ignorecase=False, pattern="", depth_count="", target_remove="", max_size=2, example="", remarks=""):
         super().__init__(parent_window, title, window_minsize, window_maxsize)
@@ -732,7 +890,7 @@ class RegularExpressionsWindow(wx.Frame):
             # 入力ウインドウを出す
             # 入力ウインドウが出ても正規表現ウインドウの処理は続くため操作が可能(つまり追加ボタンを押しまくれば入力ウインドウが出しまくれる)だが、
             # 入力ウインドウ側で正規表現ウインドウを無効化することで、入力中に正規表現ウインドウ側で好き勝手することを禁止する
-            InputItemInfoWindow_Ordinary(self._window, "項目の追加", wx.Size(500, 250), wx.Size(1000, 250), self, self._ListBox_AddItem, index)
+            InputItemInfoWindow_Ordinary(self._window, "項目の追加", wx.Size(750, 300), wx.Size(1250, 300), self, self._ListBox_AddItem, index)
 
         def _Button_Edit_Event(self, event):
             """
@@ -746,8 +904,8 @@ class RegularExpressionsWindow(wx.Frame):
                 InputItemInfoWindow_Ordinary(
                     self._window,
                     "項目の編集",
-                    wx.Size(500, 250),
-                    wx.Size(1000, 250),
+                    wx.Size(750, 300),
+                    wx.Size(1250, 300),
                     self,
                     self._ListBox_EditItem,
                     index,
@@ -1240,7 +1398,7 @@ class RegularExpressionsWindow(wx.Frame):
             # 選択された項目のインデックスを取得 何も選択されていないなら負の値になり、末尾に追加される
             index = self._ListBox_SelectedItemIndex()
 
-            InputItemInfoWindow_Replace(self._window, "項目の追加", wx.Size(500, 280), wx.Size(1000, 280), self, self._ListBox_AddItem, index)
+            InputItemInfoWindow_Replace(self._window, "項目の追加", wx.Size(750, 300), wx.Size(1250, 300), self, self._ListBox_AddItem, index)
 
         def _Button_Edit_Event(self, event):
             """
@@ -1254,8 +1412,8 @@ class RegularExpressionsWindow(wx.Frame):
                 InputItemInfoWindow_Replace(
                     self._window,
                     "項目の編集",
-                    wx.Size(500, 280),
-                    wx.Size(1000, 280),
+                    wx.Size(750, 300),
+                    wx.Size(1250, 300),
                     self,
                     self._ListBox_EditItem,
                     index,
@@ -1429,7 +1587,7 @@ class RegularExpressionsWindow(wx.Frame):
             # 選択された項目のインデックスを取得 何も選択されていないなら負の値になり、末尾に追加される
             index = self._ListBox_SelectedItemIndex()
 
-            InputItemInfoWindow_Header(self._window, "項目の追加", wx.Size(500, 340), wx.Size(1000, 340), self, self._ListBox_AddItem, index)
+            InputItemInfoWindow_Header(self._window, "項目の追加", wx.Size(750, 340), wx.Size(1250, 340), self, self._ListBox_AddItem, index)
 
         def _Button_Edit_Event(self, event):
             """
@@ -1443,8 +1601,8 @@ class RegularExpressionsWindow(wx.Frame):
                 InputItemInfoWindow_Header(
                     self._window,
                     "項目の編集",
-                    wx.Size(500, 340),
-                    wx.Size(1000, 340),
+                    wx.Size(750, 340),
+                    wx.Size(1250, 340),
                     self,
                     self._ListBox_EditItem,
                     index,

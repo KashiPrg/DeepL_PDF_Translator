@@ -271,7 +271,7 @@ def PDFTextExtract(filename, force_ignore_start_condition=False, force_ignore_en
     return textlines
 
 
-def OrganizeTranslationUnits(filename, textlines, tl_unit_max_len=4800):
+def OrganizeTranslationUnits(filename, textlines):
     """
     PDFから抽出・加工したテキストから翻訳単位(DeepLで一回に翻訳する段落の集まり)を構成し、そのリストを返す
 
@@ -341,8 +341,8 @@ def OrganizeTranslationUnits(filename, textlines, tl_unit_max_len=4800):
         else:
             currentLen += len(par_buffer)
 
-        if not tooLongParagraph and currentLen > tl_unit_max_len:
-            # 1翻訳単位の制限文字数(既定値4800)を超えそうになったら、それまでの段落を翻訳にかける
+        if not tooLongParagraph and currentLen > Settings().chars_translated_one_time:
+            # 1翻訳単位の制限文字数(既定値4500)を超えそうになったら、それまでの段落を翻訳にかける
             if parslen > 0:
                 tl_units.append(paragraphs)
                 too_long_flags.append(False)

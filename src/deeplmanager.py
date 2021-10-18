@@ -83,7 +83,7 @@ class DeepLManager:
 
         # 自動的に最小化する設定なら、このタイミングで最小化する
         # 最小化していても、↑のように新規タブ作成などでは復活してしまう
-        if Settings.minimize_translation_window:
+        if Settings().minimize_translation_window:
             self.MinimizeWindow()
 
         # DeepLに接続

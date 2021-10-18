@@ -1,4 +1,6 @@
+from wx.core import ALIGN_LEFT
 import wx
+import wx.lib.agw.floatspin as FS
 
 from data import Target_Lang, Browser, MainWindow_MenuBar_Menu
 from pathlib import Path
@@ -131,7 +133,7 @@ class MyFileDropTarget(wx.FileDropTarget):
 
 class WindowFrame(wx.Frame):
     def __init__(self):
-        wx.Frame.__init__(self, None, title="DeepL PDF Translator", size=(500, 302), style=wx.MINIMIZE_BOX | wx.SYSTEM_MENU | wx.CAPTION | wx.CLOSE_BOX | wx.CLIP_CHILDREN)
+        wx.Frame.__init__(self, None, title="DeepL PDF Translator", size=(500, 330), style=wx.MINIMIZE_BOX | wx.SYSTEM_MENU | wx.CAPTION | wx.CLOSE_BOX | wx.CLIP_CHILDREN)
 
         # ウインドウを閉じた時のイベント
         self.Bind(wx.EVT_CLOSE, self.Window_Close_Event)
@@ -152,60 +154,66 @@ class WindowFrame(wx.Frame):
         widgets_sizer = wx.BoxSizer(wx.VERTICAL)
         widgets_background.SetSizer(widgets_sizer)
         widgets_subsizer = wx.BoxSizer(wx.VERTICAL)
-        widgets_sizer.Add(widgets_subsizer, proportion=1, flag=wx.EXPAND | wx.ALL, border=10)
+        widgets_sizer.Add(widgets_subsizer, proportion=1, flag=wx.EXPAND | wx.ALL, border=20)
 
         # 言語選択のラベル
         target_lang_label = wx.StaticText(widgets_background, -1, "翻訳先の言語")
-        widgets_subsizer.Add(target_lang_label, flag=wx.ALIGN_LEFT | wx.TOP | wx.LEFT, border=10)
+        widgets_subsizer.Add(target_lang_label, flag=wx.ALIGN_LEFT)
 
         # 言語選択のコンボボックス
-        self.target_lang_combo = WindowFrame.TargetLangCombo(widgets_background, wx.ID_ANY)  # 下で設定したクラスから引っ張ってくる
+        self.target_lang_combo = WindowFrame.TargetLangCombo(widgets_background, id=0)  # 下で設定したクラスから引っ張ってくる
         self.target_lang_combo.SetStringSelection(Settings().target_language)     # 最初の値を設定ファイルから引っ張ってくる
-        self.target_lang_combo.Bind(wx.EVT_COMBOBOX, self.TargetLangCombo_Event)   # 選択時のイベントを設定
-        widgets_subsizer.Add(self.target_lang_combo, flag=wx.ALIGN_LEFT | wx.LEFT, border=10)
+        self.target_lang_combo.Bind(wx.EVT_COMBOBOX, self.__Settings_Change_Event)   # 選択時のイベントを設定
+        widgets_subsizer.Add(self.target_lang_combo, flag=wx.ALIGN_LEFT)
 
         # ブラウザ選択のラベル
         browser_label = wx.StaticText(widgets_background, -1, "使用ウェブブラウザ")
-        widgets_subsizer.Add(browser_label, flag=wx.ALIGN_LEFT | wx.TOP | wx.LEFT, border=10)
+        widgets_subsizer.Add(browser_label, flag=wx.ALIGN_LEFT | wx.TOP, border=10)
 
         # ブラウザ選択のコンボボックス
-        self.browser_combo = WindowFrame.BrowserCombo(widgets_background, wx.ID_ANY)
+        self.browser_combo = WindowFrame.BrowserCombo(widgets_background, id=1)
         self.browser_combo.SetStringSelection(Settings().web_browser)
-        self.browser_combo.Bind(wx.EVT_COMBOBOX, self.BrowserCombo_Event)
-        widgets_subsizer.Add(self.browser_combo, flag=wx.ALIGN_LEFT | wx.LEFT | wx.BOTTOM, border=10)
+        self.browser_combo.Bind(wx.EVT_COMBOBOX, self.__Settings_Change_Event)
+        widgets_subsizer.Add(self.browser_combo, flag=wx.ALIGN_LEFT)
+
+        # 一度に翻訳する文字数を変更する数値入力フィールド
+        self.__numfield_tl_onetime = FS.FloatSpin(widgets_background, id=2, min_val=100, increment=100, digits=0, value=Settings().chars_translated_one_time, agwStyle=FS.FS_RIGHT)
+        self.__numfield_tl_onetime.SetToolTip("一度に翻訳する文字数を変更します。無料版のDeepLでは一度の翻訳につき5000文字までの制限があるため、この値が5000に近いほど翻訳に失敗しやすくなります。")
+        self.__numfield_tl_onetime.Bind(FS.EVT_FLOATSPIN, self.__Settings_Change_Event)
+        widgets_subsizer.Add(self.__numfield_tl_onetime, flag=ALIGN_LEFT | wx.TOP, border=10)
 
         # 翻訳時にDeepLのウインドウを最小化するか
-        self.chkbx_minimize_tl_window = wx.CheckBox(widgets_background, wx.ID_ANY, "DeepLのウインドウを最小化する")
+        self.chkbx_minimize_tl_window = wx.CheckBox(widgets_background, id=3, label="DeepLのウインドウを最小化する")
         self.chkbx_minimize_tl_window.SetToolTip("翻訳開始時に、DeepLを開いたウェブブラウザのウインドウを自動的に最小化します")
         self.chkbx_minimize_tl_window.SetValue(Settings().minimize_translation_window)
-        self.chkbx_minimize_tl_window.Bind(wx.EVT_CHECKBOX, self.CheckBox_MinimizeTLWindow_Event)
-        widgets_subsizer.Add(self.chkbx_minimize_tl_window, flag=wx.ALIGN_LEFT | wx.TOP | wx.LEFT | wx.BOTTOM, border=10)
+        self.chkbx_minimize_tl_window.Bind(wx.EVT_CHECKBOX, self.__Settings_Change_Event)
+        widgets_subsizer.Add(self.chkbx_minimize_tl_window, flag=wx.ALIGN_LEFT | wx.TOP, border=10)
 
         # 翻訳・出力時の設定を扱うチェックボックス群
-        self.chkbx_target_return = wx.CheckBox(widgets_background, wx.ID_ANY, "翻訳文を一文ごとに改行する")
+        self.chkbx_target_return = wx.CheckBox(widgets_background, id=4, label="翻訳文を一文ごとに改行する")
         self.chkbx_target_return.SetToolTip("出力された日本語の翻訳文を、\"。\"の位置で改行します")
         self.chkbx_target_return.SetValue(Settings().add_target_return)
-        self.chkbx_target_return.Bind(wx.EVT_CHECKBOX, self.CheckBox_TargetReturn_Event)
-        widgets_subsizer.Add(self.chkbx_target_return, flag=wx.ALIGN_LEFT | wx.TOP | wx.LEFT, border=10)
+        self.chkbx_target_return.Bind(wx.EVT_CHECKBOX, self.__Settings_Change_Event)
+        widgets_subsizer.Add(self.chkbx_target_return, flag=wx.ALIGN_LEFT | wx.TOP, border=10)
 
-        self.chkbx_output_markdown = wx.CheckBox(widgets_background, wx.ID_ANY, "出力をMarkdown式にする")
+        self.chkbx_output_markdown = wx.CheckBox(widgets_background, id=5, label="出力をMarkdown式にする")
         self.chkbx_output_markdown.SetToolTip("見出しや改行をMarkdown式にします")
         self.chkbx_output_markdown.SetValue(Settings().output_type_markdown)
-        self.chkbx_output_markdown.Bind(wx.EVT_CHECKBOX, self.CheckBox_OutputMarkdown_Event)
-        widgets_subsizer.Add(self.chkbx_output_markdown, flag=wx.ALIGN_LEFT | wx.LEFT, border=10)
+        self.chkbx_output_markdown.Bind(wx.EVT_CHECKBOX, self.__Settings_Change_Event)
+        widgets_subsizer.Add(self.chkbx_output_markdown, flag=wx.ALIGN_LEFT)
 
-        self.chkbx_output_source = wx.CheckBox(widgets_background, wx.ID_ANY, "原文を出力する")
+        self.chkbx_output_source = wx.CheckBox(widgets_background, id=6, label="原文を出力する")
         self.chkbx_output_source.SetToolTip("原文と翻訳文をセットで出力します")
         self.chkbx_output_source.SetValue(Settings().output_source)
-        self.chkbx_output_source.Bind(wx.EVT_CHECKBOX, self.CheckBox_OutputSource_Event)
-        widgets_subsizer.Add(self.chkbx_output_source, flag=wx.ALIGN_LEFT | wx.LEFT, border=10)
+        self.chkbx_output_source.Bind(wx.EVT_CHECKBOX, self.__Settings_Change_Event)
+        widgets_subsizer.Add(self.chkbx_output_source, flag=wx.ALIGN_LEFT)
 
-        self.chkbx_source_as_comment = wx.CheckBox(widgets_background, wx.ID_ANY, "原文をコメントとして出力する")
+        self.chkbx_source_as_comment = wx.CheckBox(widgets_background, id=7, label="原文をコメントとして出力する")
         self.chkbx_source_as_comment.SetToolTip("Markdown形式において、原文をコメントとして出力します")
         self.chkbx_source_as_comment.SetValue(Settings().source_as_comment)
-        self.chkbx_source_as_comment.Bind(wx.EVT_CHECKBOX, self.CheckBox_SourceAsComment_Event)
+        self.chkbx_source_as_comment.Bind(wx.EVT_CHECKBOX, self.__Settings_Change_Event)
         self.CheckBox_SourceAsComment_EnableCheck()     # この項目は前の2つに依存している
-        widgets_subsizer.Add(self.chkbx_source_as_comment, flag=wx.ALIGN_LEFT | wx.LEFT, border=10)
+        widgets_subsizer.Add(self.chkbx_source_as_comment, flag=wx.ALIGN_LEFT)
 
         # ドラッグ＆ドロップ用のパネル
         drop_panel = wx.Panel(self)
@@ -234,6 +242,39 @@ class WindowFrame(wx.Frame):
     def Window_Close_Event(self, event):
         Settings.SaveSettings()  # 変更した設定を保存する
         self.Destroy()  # イベントを発行すると自動では閉じなくなるので手動で閉じる
+
+    def __Settings_Change_Event(self, event):
+        """
+        メインウインドウの設定を変更したときに呼ばれるイベント
+        """
+        id = event.GetId()
+
+        if id == 0:
+            # 言語選択のコンボボックス変更時
+            Settings().target_language = self.target_lang_combo.GetStringSelection()
+        elif id == 1:
+            # ブラウザ選択のコンボボックス変更時
+            Settings().web_browser = self.browser_combo.GetStringSelection()
+        elif id == 2:
+            # 一度に翻訳する文字数を変更する数値入力フィールド変更時
+            Settings().chars_translated_one_time = int(self.__numfield_tl_onetime.GetValue())
+        elif id == 3:
+            # 翻訳時にDeepLのウインドウを最小化するか
+            Settings().minimize_translation_window = self.chkbx_minimize_tl_window.GetValue()
+        elif id == 4:
+            # 翻訳文を一文ごとに改行するか
+            Settings().add_target_return = self.chkbx_target_return.GetValue()
+        elif id == 5:
+            # 出力をMarkdown式にするか
+            Settings().output_type_markdown = self.chkbx_output_markdown.GetValue()
+            self.CheckBox_SourceAsComment_EnableCheck()
+        elif id == 6:
+            # 原文を出力するか
+            Settings().output_source = self.chkbx_output_source.GetValue()
+            self.CheckBox_SourceAsComment_EnableCheck()
+        elif id == 7:
+            # 原文をコメントとして出力するか
+            Settings().source_as_comment = self.chkbx_source_as_comment.GetValue()
 
     # 各種チェックボックス選択時に発生するイベント
     def CheckBox_MinimizeTLWindow_Event(self, event):

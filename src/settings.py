@@ -21,13 +21,6 @@ def settings():
     # settings.jsonを読み取って設定を取得
     Settings.LoadSettings()
 
-    # アップデートなどで設定の一部が欠けているときはデフォルト設定で追加
-    lack_of_settings = SettingComplement(settings_dict, default_settings)
-
-    # 設定が欠けていた場合はsettings.jsonに保存し直す
-    if lack_of_settings:
-        Settings.SaveSettings()
-
     return settings_dict
 
 
@@ -182,6 +175,13 @@ class Settings():
         with open(str(settings_path), "r", encoding="utf-8") as f:
             settings_dict = json.load(f)
 
+        # アップデートなどで設定の一部が欠けているときはデフォルト設定で追加
+        lack_of_settings = SettingComplement(settings_dict, default_settings)
+
+        # 設定が欠けていた場合はsettings.jsonに保存し直す
+        if lack_of_settings:
+            Settings.SaveSettings()
+
     # 翻訳先の言語
     @property
     def target_language(self):
@@ -203,6 +203,14 @@ class Settings():
     @web_browser.setter
     def web_browser(self, str_web_browser):
         self.__settings["str_web_browser"] = str_web_browser
+
+    @property
+    def chars_translated_one_time(self):
+        return self.__settings["int_chars_translated_one_time"]
+
+    @chars_translated_one_time.setter
+    def chars_translated_one_time(self, number):
+        self.__settings["int_chars_translated_one_time"] = number
 
     # 翻訳ウインドウを自動で最小化するか
     @property
