@@ -158,6 +158,7 @@ class WindowFrame(wx.Frame):
 
         # 言語選択のラベル
         target_lang_label = wx.StaticText(widgets_background, -1, "翻訳先の言語")
+        target_lang_label.SetToolTip("どの言語に翻訳したいかを指定します。\nどの言語から翻訳するかは、DeepLによって自動で判別されます。")
         widgets_subsizer.Add(target_lang_label, flag=wx.ALIGN_LEFT)
 
         # 言語選択のコンボボックス
@@ -168,6 +169,7 @@ class WindowFrame(wx.Frame):
 
         # ブラウザ選択のラベル
         browser_label = wx.StaticText(widgets_background, -1, "使用ウェブブラウザ")
+        browser_label.SetToolTip("自動翻訳に用いるウェブブラウザを指定します。\nエラーの頻度が低いため、FireFoxの使用を推奨します。")
         widgets_subsizer.Add(browser_label, flag=wx.ALIGN_LEFT | wx.TOP, border=10)
 
         # ブラウザ選択のコンボボックス
@@ -176,11 +178,15 @@ class WindowFrame(wx.Frame):
         self.browser_combo.Bind(wx.EVT_COMBOBOX, self.__Settings_Change_Event)
         widgets_subsizer.Add(self.browser_combo, flag=wx.ALIGN_LEFT)
 
+        # 翻訳文字数のラベル
+        tl_onetime_label = wx.StaticText(widgets_background, -1, "一度に翻訳する文字数")
+        tl_onetime_label.SetToolTip("一度に翻訳する文字数を変更します。\n無料版のDeepLでは一度の翻訳につき5000文字までの制限があるため、\nこの値が5000に近いほど翻訳に失敗しやすくなります。")
+        widgets_subsizer.Add(tl_onetime_label, flag=wx.ALIGN_LEFT | wx.TOP, border=10)
+
         # 一度に翻訳する文字数を変更する数値入力フィールド
         self.__numfield_tl_onetime = FS.FloatSpin(widgets_background, id=2, min_val=100, increment=100, digits=0, value=Settings().chars_translated_one_time, agwStyle=FS.FS_RIGHT)
-        self.__numfield_tl_onetime.SetToolTip("一度に翻訳する文字数を変更します。無料版のDeepLでは一度の翻訳につき5000文字までの制限があるため、この値が5000に近いほど翻訳に失敗しやすくなります。")
         self.__numfield_tl_onetime.Bind(FS.EVT_FLOATSPIN, self.__Settings_Change_Event)
-        widgets_subsizer.Add(self.__numfield_tl_onetime, flag=ALIGN_LEFT | wx.TOP, border=10)
+        widgets_subsizer.Add(self.__numfield_tl_onetime, flag=ALIGN_LEFT)
 
         # 翻訳時にDeepLのウインドウを最小化するか
         self.chkbx_minimize_tl_window = wx.CheckBox(widgets_background, id=3, label="DeepLのウインドウを最小化する")
