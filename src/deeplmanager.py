@@ -91,6 +91,7 @@ class DeepLManager:
 
         # 訳文の言語を選択するタブを開く
         self.__webDriver.find_element_by_xpath("//button[@dl-test='translator-target-lang-btn']").click()
+        sleep(0.1)
         # 訳文の言語のボタンを押す
         self.__webDriver.find_element_by_xpath("//button[@dl-test='translator-lang-option-" + Settings().target_language_for_translate + "']").click()
 
@@ -117,12 +118,12 @@ class DeepLManager:
         source_textarea.clear()
         source_textarea.send_keys(text)
 
-        # 最初に5秒待つ
+        # 最初に規定の秒数だけ待つ
         sleep(first_wait_secs)
 
         # 翻訳の進行度を示すポップアップが無ければ翻訳完了と見なす
         # 制限時間内に翻訳が終了しなければ翻訳失敗と見なす
-        wait_secs_sub = int(wait_secs_max - first_wait_secs)
+        wait_secs_sub = max(int(wait_secs_max - first_wait_secs), 1)
         for i in range(wait_secs_sub):
             try:
                 # 通常時はdiv.lmt_progress_popupだが、ポップアップが可視化するときは
@@ -140,11 +141,16 @@ class DeepLManager:
                 sleep(1.0)
                 continue
             else:
+                # 制限時間を過ぎたとき、大抵の場合は原文に[...]が含まれていて抜け出せない状態になっているので、その場合は翻訳が完了していると見なす
+                # 上のexcept区間でこの処理を行うと長い文の翻訳途中で抜けてしまう可能性があるため、制限時間を過ぎた場合にのみ行う
+                # このようなケースは稀であると考えられるため、多少時間がかかっても良い。
+                # あまりにも鬱陶しいなら原文の[...]を置換すれば良い。
+                if re.search(r"\[\.\.\.\]", text) and re.search(r"\[\.\.\.\]", translated):
+                    break
                 # 制限時間を過ぎたら失敗
                 # 段落と同じ数だけメッセージを生成
-                # 先頭は翻訳の失敗を伝えるメッセージで、残りは空白
                 num_pars = len(text.splitlines())
-                messages = ["(翻訳に" + str(wait_secs_max) + "秒以上を要するため失敗と見なしました)"] + ["" for _ in range(num_pars - 1)]
+                messages = ["翻訳に" + str(wait_secs_max) + "秒以上を要するため、失敗と見なしました。同一のメッセージが表示されている原文のどれかに、翻訳を妨げる文字列が存在する可能性があります。" for _ in range(num_pars)]
                 return "\n".join(messages)
 
         # 訳文の出力欄を取得し、訳文を取得
